@@ -1,1 +1,1 @@
-# cursor-rules
+# Cursor Rules
