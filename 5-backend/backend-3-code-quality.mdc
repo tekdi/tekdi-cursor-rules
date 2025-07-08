@@ -1,0 +1,69 @@
+---
+description: Code quality standards and project structure guidelines
+globs: ["**/*"]
+alwaysApply: true
+---
+
+# Code Quality Standards
+
+## Project Structure
+
+- Use layered architecture with clear separation of concerns
+- Separate presentation, business logic, and data access layers
+- Implement dependency injection for loose coupling
+- Create modular, reusable components
+- Follow consistent file and folder naming conventions
+
+## Naming Conventions
+
+| Element | Convention | 
+|---------|------------|
+| **Files/Folders** | Follow project conventions | 
+| **Functions** | Follow language conventions |
+| **Variables** | Follow language conventions | 
+| **Classes** | Follow language conventions | 
+| **Constants** | Follow language conventions | 
+| **Interfaces** | Follow language conventions |
+
+## Code Organization
+
+- Keep functions small and focused (< 20 lines)
+- Use meaningful and descriptive names
+- Implement proper error handling
+- Add comments for complex business logic
+- Follow DRY (Don't Repeat Yourself) principle
+- Group related functionality together
+- Minimize dependencies between modules
+
+## Type Safety
+
+- Use static typing when available in your language
+- Implement proper interface/contract definitions
+- Use generic/template types where appropriate
+- Avoid dynamic typing for critical business logic
+- Define clear data contracts between layers
+- Validate data at system boundaries
+
+## Code Review Guidelines
+
+- [ ] Code follows consistent naming conventions
+- [ ] Business logic is properly separated from presentation logic
+- [ ] No hardcoded values or credentials
+- [ ] Proper error handling and logging
+- [ ] Tests are included for new functionality
+- [ ] Documentation is updated
+- [ ] Security considerations are addressed
+- [ ] Performance implications are considered
+- [ ] Code is readable and maintainable
+- [ ] Dependencies are minimal and justified
+
+## Documentation Standards
+
+- Add clear comments and docstrings to all public APIs and interfaces
+- Include code examples in function/method documentation
+- Use appropriate documentation format for your language
+- Create README files for modules and packages
+- Document configuration options and environment variables in code
+- Use clear and concise language in code comments
+- Include setup and usage instructions in README files
+ 

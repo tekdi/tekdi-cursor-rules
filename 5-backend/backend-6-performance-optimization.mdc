@@ -1,0 +1,82 @@
+---
+description: Performance optimization strategies for API development
+globs: ["**/*"]
+alwaysApply: true
+---
+
+# Performance Optimization
+
+## Async Programming
+
+- Use asynchronous patterns for I/O operations
+- Implement proper connection pooling for databases and external services
+- Use background tasks for non-blocking operations
+- Leverage concurrent operations where appropriate
+- Avoid blocking operations on main execution thread
+
+## Caching Strategy
+
+- Implement multi-level caching (in-memory, distributed cache, persistent storage)
+- Use appropriate TTL values based on data volatility
+- Cache frequently accessed data and expensive computations
+- Implement cache invalidation strategies
+- Use conditional requests for client-side caching
+- Implement cache warming for critical data
+
+### Caching TTL Guidelines
+
+| Data Type | TTL (seconds) | Use Case |
+|-----------|---------------|----------|
+| **Static Reference** | 3600+ | Countries, categories, constants |
+| **User Sessions** | 1800 | Authentication tokens, user state |
+| **API Responses** | 300-1800 | Weather data, prices, external APIs |
+| **Database Queries** | 60-300 | Frequently accessed data |
+| **Real-time Data** | 10-60 | Live metrics, counters, notifications |
+| **Configuration** | 7200+ | App settings, feature flags |
+| **Computed Results** | 900-3600 | Reports, analytics, aggregations |
+
+## Database Optimization
+
+- Use proper indexing strategies
+- Implement connection pooling
+- Optimize queries to avoid N+1 problems
+- Use pagination for large datasets
+- Implement transactions for consistency when supported
+- Choose appropriate data store for use case (SQL, NoSQL, Graph, etc.)
+
+## Pagination Implementation
+
+- Use offset-based pagination for simple cases
+- Implement cursor-based pagination for large datasets
+- Include pagination metadata in responses
+- Limit maximum page size to prevent resource exhaustion
+- Provide navigation links/tokens for next/previous pages
+
+## Performance Monitoring
+
+- Implement response time tracking in application code
+- Expose performance metrics through health endpoints
+- Log performance issues with appropriate detail levels
+- Structure performance logs for analysis
+- Implement resource utilization tracking
+- Create performance benchmarks in tests
+
+## Framework-Agnostic Optimization Principles
+
+### Memory Management
+- **Object pooling**: Reuse expensive objects
+- **Lazy loading**: Load data only when needed
+- **Garbage collection**: Minimize object creation in hot paths
+- **Memory leaks**: Properly cleanup resources and event listeners
+
+### I/O Optimization
+- **Batch operations**: Combine multiple requests
+- **Compression**: Reduce payload sizes
+- **Streaming**: Handle large data sets efficiently
+- **Prefetching**: Load anticipated data in advance
+
+### Algorithmic Optimization
+- **Data structures**: Choose appropriate structures for use case
+- **Algorithms**: Use efficient algorithms (O(log n) vs O(n))
+- **Indexing**: Create indexes for frequently queried fields
+- **Caching**: Store computed results to avoid recalculation

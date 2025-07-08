@@ -1,0 +1,134 @@
+---
+description: Framework-agnostic architectural patterns and design principles
+globs: ["**/*"]
+alwaysApply: true
+---
+
+# Architectural Patterns
+
+## Layered Architecture
+
+### Controller Layer
+- Keep controllers thin and focused on HTTP concerns
+- Handle request/response transformation
+- Delegate business logic to service layer
+- Implement proper input validation
+- Return consistent response formats
+
+### Service Layer
+- Contain all business logic and rules
+- Orchestrate operations across multiple repositories
+- Handle business rule validation
+- Implement transaction management
+- Make services testable and mockable
+
+### Repository/Data Access Layer
+- Abstract data access logic
+- Implement data persistence operations
+- Handle database-specific concerns
+- Provide clean interfaces for data operations
+- Implement proper error handling for data operations
+
+## Dependency Injection
+
+- Use constructor injection for required dependencies
+- Implement proper dependency interfaces/contracts
+- Avoid circular dependencies
+- Use dependency injection containers when available
+- Make dependencies explicit and testable
+
+## Domain-Driven Design Patterns
+
+### Entities and Value Objects
+- Define clear entity boundaries
+- Use value objects for immutable data
+- Implement proper equality comparison
+- Encapsulate business rules within entities
+- Maintain data consistency within aggregates
+
+### Repository Pattern
+- Define repository interfaces in domain layer
+- Implement repositories in infrastructure layer
+- Use repositories to abstract data access
+- Implement unit of work pattern for transactions
+- Keep repositories focused on single aggregates
+
+## Error Handling Patterns
+
+### Exception Hierarchy
+- Create domain-specific exception types
+- Use base exception classes for common behavior
+- Include relevant context in exceptions
+- Implement proper exception handling at boundaries
+- Log exceptions with appropriate detail levels
+
+### Result Pattern
+- Use result objects for operations that can fail
+- Return success/failure status with data or errors
+- Avoid throwing exceptions for expected failures
+- Implement proper error propagation
+- Provide clear error messages to consumers
+
+## Authentication and Authorization Patterns
+
+### Authentication
+- Implement token-based authentication
+- Use secure token storage and transmission
+- Implement proper token validation
+- Handle token refresh and expiration
+- Log authentication events for security monitoring
+
+### Authorization
+- Implement role-based access control
+- Use attribute-based authorization for complex scenarios
+- Implement proper permission checking
+- Cache authorization decisions when appropriate
+- Log authorization failures with relevant context
+
+## Data Transfer Patterns
+
+### DTO (Data Transfer Object)
+- Use separate models for API requests/responses
+- Implement proper validation in DTOs
+- Keep DTOs focused on data transfer
+- Version DTOs for API evolution
+- Use mapping between DTOs and domain models
+
+### Command and Query Separation
+- Separate read and write operations
+- Use commands for state-changing operations
+- Use queries for data retrieval
+- Implement different models for reads and writes
+- Optimize each operation type independently
+
+## Caching Patterns
+
+### Cache-Aside Pattern
+- Load data into cache on cache miss
+- Update cache when data changes
+- Implement proper cache invalidation
+- Handle cache failures gracefully
+- Expose cache performance metrics for monitoring
+
+### Write-Through/Write-Behind
+- Update cache and database together
+- Implement eventual consistency where appropriate
+- Handle cache and database synchronization
+- Implement proper error recovery
+- Log data consistency issues for debugging
+
+## Background Processing Patterns
+
+### Message Queue Pattern
+- Use queues for asynchronous processing
+- Implement proper message handling
+- Handle message failures and retries
+- Implement dead letter queues
+- Expose queue metrics for health monitoring
+
+### Event-Driven Architecture
+- Use events for loose coupling
+- Implement proper event handling
+- Handle event ordering when necessary
+- Implement event sourcing where appropriate
+- Log event processing results and failures

@@ -1,0 +1,135 @@
+---
+description: Error handling, exception management, and logging standards
+globs: ["**/*"]
+alwaysApply: true
+---
+
+# Error Handling & Exception Management
+
+## Exception Management
+
+- Create custom exception classes for different error types
+- Implement global exception handlers
+- Use structured error responses with consistent format
+- Log errors with appropriate context and correlation IDs
+- Handle validation errors with field-level details
+- Implement exception hierarchies for better error categorization
+- Use appropriate error handling patterns for your architecture
+
+## Error Response Format
+
+Use consistent error response structure appropriate for your protocol:
+
+### REST/HTTP APIs
+```json
+{
+  "success": false,
+  "message": "Error description",
+  "error_type": "ValidationError",
+  "errors": [
+    {
+      "field": "email",
+      "message": "Invalid email format",
+      "code": "INVALID_FORMAT"
+    }
+  ],
+  "timestamp": "2024-01-01T00:00:00Z",
+  "request_id": "req-123456"
+}
+```
+
+### GraphQL APIs
+```json
+{
+  "data": null,
+  "errors": [
+    {
+      "message": "Invalid email format",
+      "extensions": {
+        "code": "INVALID_FORMAT",
+        "field": "email",
+        "timestamp": "2024-01-01T00:00:00Z"
+      }
+    }
+  ]
+}
+```
+
+### Message Queue/Event Systems
+```json
+{
+  "event_type": "error",
+  "error_code": "VALIDATION_FAILED",
+  "message": "Data validation failed",
+  "context": {
+    "service": "user-service",
+    "operation": "create_user",
+    "correlation_id": "corr-123456"
+  },
+  "details": {
+    "field": "email",
+    "reason": "Invalid format"
+  }
+}
+```
+
+## Logging & Monitoring
+
+- Implement comprehensive logging (debug, info, warn, error, fatal levels)
+- Use structured logging with correlation IDs and context
+- Expose application performance and health metrics
+- Log critical errors with appropriate severity levels
+- Include business metrics in structured logs
+- Structure logs for centralized aggregation
+- Use appropriate log levels to avoid noise
+- Include relevant context without exposing sensitive data
+
+## Error Classification
+
+### Client Errors (4xx equivalent)
+- **Invalid Input**: Bad request data, validation errors
+- **Authentication Required**: Missing or invalid credentials
+- **Authorization Denied**: Insufficient permissions for operation
+- **Resource Not Found**: Requested resource doesn't exist
+- **Conflict**: Resource state conflict, duplicate entries
+- **Rate Limited**: Too many requests, quota exceeded
+
+### Server Errors (5xx equivalent)
+- **Internal Error**: Unexpected application errors
+- **Service Unavailable**: External dependencies down
+- **Timeout**: Operation exceeded time limits
+- **Resource Exhausted**: Out of memory, disk space, etc.
+
+### Business Logic Errors
+- **Validation Failed**: Business rule violations
+- **State Conflict**: Invalid state transitions
+- **Dependency Missing**: Required resources unavailable
+- **Operation Not Allowed**: Business constraints violated
+
+## Error Context & Tracing
+
+- Include unique request/operation ID in all error responses
+- Log user context (without sensitive data like passwords)
+- Structure error logs to enable pattern analysis
+- Implement error recovery mechanisms where possible
+- Implement distributed tracing headers for microservices
+- Maintain error correlation IDs across service boundaries
+- Include relevant system state information in error logs
+
+## Framework-Agnostic Error Handling Patterns
+
+### Exception Hierarchy
+```
+BaseException
+├── ClientException (4xx-type errors)
+│   ├── ValidationException
+│   ├── AuthenticationException
+│   └── AuthorizationException
+├── ServerException (5xx-type errors)
+│   ├── DatabaseException
+│   ├── ExternalServiceException
+│   └── ConfigurationException
+└── BusinessException
+    ├── InsufficientFundsException
+    └── InvalidStateTransitionException
+```

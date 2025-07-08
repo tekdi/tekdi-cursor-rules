@@ -1,0 +1,120 @@
+---
+description: Data validation and database management standards
+globs: ["**/*"]
+alwaysApply: true
+---
+
+# Database Management & Data Validation
+
+## Database Design
+
+- Use appropriate data types and constraints
+- Implement proper relationships and foreign keys (for relational databases)
+- Use schema migrations for database changes
+- Implement data validation at database level
+- Use transactions for data consistency
+- Design for your database type (SQL, NoSQL, Graph, etc.)
+- Consider data normalization vs denormalization based on use case
+
+## Schema Definition
+
+- Define clear data models and schemas
+- Use validation metadata appropriate for your language/framework
+- Implement custom validators for business rules
+- Document all schema fields and their purposes
+- Version your schemas for API evolution
+- Define data contracts between system boundaries
+- Specify validation rules declaratively when possible
+
+## Database Operations
+
+- Use parameterized queries to prevent injection attacks
+- Implement proper connection pooling
+- Use transactions for multi-step operations
+- Implement soft deletes when data retention is required
+- Use appropriate indexing strategies for performance
+- Handle database-specific error conditions gracefully
+- Implement proper connection timeout and retry logic
+
+
+## Input Validation
+
+- Validate all input parameters (path, query, body)
+- Use schema validation libraries appropriate for your framework
+- Implement field-level validation with clear error messages
+- Use type checking and constraints (min/max values, string lengths)
+- Validate data formats (email, phone, dates, URLs)
+- Reject invalid input early in the request pipeline
+- Use allowlists rather than blocklists when possible
+
+## Data Validation Rules
+
+- Validate data types, formats, and ranges
+- Implement business rule validation
+- Use schema validation for complex objects
+- Validate relationships and dependencies
+- Provide clear validation error messages
+- Validate required vs optional fields
+- Check data consistency across related entities
+
+## Validation Error Handling
+
+- Return structured validation errors with consistent format
+- Include field names, error codes, and descriptive messages
+- Provide user-friendly error messages
+- Log validation failures with appropriate detail levels
+- Implement progressive validation feedback
+- Structure error messages to support internationalization
+- Distinguish between client errors and server errors
+
+## Data Sanitization
+
+- Sanitize input data before processing
+- Remove or escape dangerous characters
+- Normalize data formats (trim whitespace, standardize case)
+- Implement data transformation pipelines
+- Validate data integrity after transformations
+- Apply encoding/escaping appropriate for output context
+- Remove or mask sensitive data in logs and error messages
+
+## Validation Examples (Framework-Agnostic)
+
+### Basic Field Validation
+```
+Required fields: name, email, age
+Optional fields: phone, address
+
+Constraints:
+- name: 1-100 characters, no special characters
+- email: valid email format
+- age: integer, 13-120 range
+- phone: valid phone format (if provided)
+```
+
+### Business Rule Validation
+```
+Rules:
+- Email must be unique across users
+- Age must be >= 18 for certain operations
+- Related entities must exist before creating relationships
+- Data must pass custom business logic checks
+```
+
+### Error Response Format
+```
+{
+  "valid": false,
+  "errors": [
+    {
+      "field": "email",
+      "code": "INVALID_FORMAT",
+      "message": "Email format is invalid"
+    },
+    {
+      "field": "age", 
+      "code": "OUT_OF_RANGE",
+      "message": "Age must be between 13 and 120"
+    }
+  ]
+}
+```
