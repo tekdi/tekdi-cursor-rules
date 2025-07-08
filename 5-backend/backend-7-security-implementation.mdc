@@ -1,0 +1,108 @@
+---
+description: Comprehensive security implementation for API endpoints
+globs: ["**/*"]
+alwaysApply: true
+---
+
+# Security Implementation
+
+## Authentication & Authorization
+
+- Implement token-based authentication with proper validation
+- Use role-based access control (RBAC) for authorization
+- Secure API endpoints with proper authentication mechanisms
+- Implement rate limiting to prevent abuse
+- Use secure communication protocols for all API interactions
+- Implement proper token lifecycle management (creation, refresh, revocation)
+- Use strong cryptographic algorithms for token generation and validation
+
+## Input Validation & Sanitization
+
+- Validate all input parameters (path, query, body, headers)
+- Use schema validation libraries appropriate for your framework
+- Sanitize inputs to prevent injection attacks
+- Implement field-level validation with clear error messages
+- Use type checking and constraints (min/max values, string lengths)
+- Validate data formats (email, phone, dates, URLs)
+- Implement allowlist-based validation when possible
+- Reject malformed or suspicious input early in the request pipeline
+
+## Security Configuration
+
+- Implement security policies appropriate for your protocol
+- Configure cross-origin access controls properly
+- Use environment variables for sensitive configuration
+- Never expose stack traces or internal errors in production
+- Implement proper error handling without information leakage
+- Use secure defaults for all configuration options
+- Implement proper logging without exposing sensitive data
+
+## Access Control & Permissions
+
+- Implement principle of least privilege
+- Use fine-grained permissions for different operations
+- Validate permissions at both endpoint and data levels
+- Implement proper session/context management
+- Use secure session storage mechanisms
+- Implement proper logout/session termination
+- Validate user permissions on every request
+
+## Data Protection
+
+- Encrypt sensitive data at rest and in transit
+- Use appropriate hashing algorithms for passwords
+- Implement proper key management practices
+- Sanitize data before logging or error reporting
+- Use secure random number generation
+- Implement data masking for sensitive information
+- Follow data retention and deletion policies
+
+## Security Monitoring & Auditing
+
+- Log all security-relevant events with structured format
+- Structure security logs to enable pattern detection
+- Log security violations with appropriate severity levels
+- Log authentication attempts and failures with context
+- Log access patterns for analysis
+- Implement comprehensive audit trails in code
+- Use structured logging for security events
+
+## Rate Limiting & Abuse Prevention
+
+- Implement rate limiting per endpoint and user
+- Use different limits for authenticated vs anonymous users
+- Implement sliding window or token bucket algorithms
+- Return appropriate error responses for rate limit violations
+- Include rate limit information in responses when applicable
+- Implement progressive delays for repeated violations
+- Use distributed rate limiting for scaled applications
+
+## Security Best Practices
+
+- Use secrets management systems for sensitive data
+- Implement proper dependency management in code
+- Structure code for security testing and vulnerability scanning
+- Follow established security frameworks and guidelines
+- Implement defense in depth strategies in application architecture
+- Write security tests as part of test suite
+- Implement secure backup and recovery mechanisms in code
+
+## Cryptographic Security
+
+- Use industry-standard cryptographic libraries
+- Implement proper key rotation policies
+- Use appropriate encryption algorithms for different use cases
+- Implement secure random number generation
+- Use proper certificate management
+- Implement secure key exchange mechanisms
+- Follow cryptographic best practices for your platform
+
+## Error Handling & Information Disclosure
+
+- Implement consistent error response formats
+- Avoid exposing sensitive information in error messages
+- Use generic error messages for security-related failures
+- Implement proper logging of security events
+- Use correlation IDs for tracking without exposing internals
+- Implement proper exception handling hierarchies
+- Return appropriate error codes without revealing system details

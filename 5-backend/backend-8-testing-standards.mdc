@@ -1,0 +1,107 @@
+---
+description: Testing standards and requirements for API development
+globs: ["**/*"]
+alwaysApply: true
+---
+
+# Testing Standards
+
+## Testing Requirements
+
+- Write unit tests for business logic (>80% coverage)
+- Implement integration tests for service interfaces
+- Use test fixtures and mocks appropriately
+- Test error scenarios and edge cases
+- Implement automated testing in deployment pipeline
+- Test both synchronous and asynchronous operations
+- Validate input/output contracts and data transformations
+
+## Test Structure
+
+- Organize tests with clear separation of concerns:
+- Use file, folder, class, method, variable naming conventions as per language
+
+```
+tests/
+├── unit/
+│   ├── business_logic/
+│   ├── data_access/
+│   └── utilities/
+├── integration/
+│   ├── service_interfaces/
+│   └── external_dependencies/
+├── fixtures/
+│   └── test_data/
+└── helpers/
+    └── test_utilities/
+```
+
+## Unit Testing
+
+- Test business logic in isolation from external dependencies
+- Mock external services and data sources
+- Test both success and failure scenarios
+- Use descriptive test names that explain the behavior being tested
+- Follow AAA pattern (Arrange, Act, Assert)
+- Test single responsibility per test case
+- Ensure tests are deterministic and repeatable
+
+## Integration Testing
+
+- Test service interfaces end-to-end
+- Test data persistence and retrieval operations
+- Test authentication and authorization mechanisms
+- Test error handling and input validation
+- Test performance under expected load conditions
+- Test inter-service communication and contracts
+- Validate data consistency across system boundaries
+
+## Test Data Management
+
+- Use test fixtures for consistent and predictable data
+- Clean up test data after each test execution
+- Use separate test environment isolated from production
+- Implement data factories for complex object creation
+- Avoid hardcoded test data that couples tests to specific values
+- Use parameterized tests for testing multiple scenarios
+- Implement proper test data versioning and migration
+
+## Service Interface Testing
+
+- Test all supported operations and methods
+- Test request/response validation and transformation
+- Test pagination, filtering, and sorting functionality
+- Test rate limiting and throttling mechanisms
+- Test concurrent request handling
+- Test protocol-specific behavior (REST, GraphQL, gRPC, etc.)
+- Validate error responses and status indicators
+
+## Test Coverage Goals
+
+- Minimum 80% code coverage for all production code
+- 100% coverage for critical business logic and security components
+- Cover all error paths and edge cases
+- Test all public interfaces and contracts
+- Monitor coverage trends over time and prevent regression
+- Include boundary condition testing
+- Test both happy path and failure scenarios
+
+## Testing Best Practices
+
+- Write tests before or alongside implementation (TDD/BDD)
+- Keep tests simple, focused, and maintainable
+- Use meaningful assertions that validate expected behavior
+- Implement proper test isolation and independence
+- Use appropriate test doubles (mocks, stubs, fakes)
+- Test at the appropriate level of abstraction
+- Implement continuous testing in development workflow
+
+## Security Testing
+
+- Test authentication and authorization mechanisms
+- Test input validation and sanitization
+- Test for common security vulnerabilities
+- Test access control and permission enforcement
+- Test secure communication and data protection
+- Test session management and token handling
+- Validate error messages don't leak sensitive information

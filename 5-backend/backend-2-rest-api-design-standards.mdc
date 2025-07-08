@@ -1,0 +1,50 @@
+---
+description: RESTful API design standards and URL structure guidelines
+globs: ["**/*"]
+alwaysApply: true
+---
+
+# API Design Standards
+
+## RESTful Design Principles
+
+- Use resource-based URLs with proper HTTP methods
+- Maintain consistent patterns across all endpoints
+- Follow REST architectural constraints
+
+## URL Structure and Naming
+
+- Use kebab-case for URLs: `/api/v1/weather-stations/{id}`
+- Always include API versioning: `/api/v1/`, `/api/v2/`
+- Use resource-based URLs, not action-based: `/users` not `/getUsers`
+- Use plural nouns for collections: `/users`, `/orders`, `/products`
+- Use sub-resources for relationships: `/users/{id}/orders`
+
+## HTTP Methods and Status Codes
+
+- **GET**: Retrieve resources (200 OK, 404 Not Found)
+- **POST**: Create new resources (201 Created, 400 Bad Request, 409 Conflict)
+- **PUT**: Update entire resources (200 OK, 404 Not Found)
+- **PATCH**: Partial updates (200 OK, 404 Not Found)
+- **DELETE**: Remove resources (204 No Content, 404 Not Found)
+
+## Request/Response Patterns
+
+- Use consistent response format with success, message, data, errors, timestamp
+- Implement proper pagination with limit, offset, total, has_next, has_prev
+- Include metadata in responses (total count, page info, timestamps)
+- Use appropriate HTTP status codes for all scenarios
+
+## API Versioning
+
+- Implement URL path versioning: `/api/v1/`, `/api/v2/`
+- Consider header-based versioning for advanced scenarios
+- Maintain backward compatibility when possible
+- Include version information in API responses
+
+## Query Parameters
+
+- Use query parameters for filtering, sorting, and pagination
+- Implement consistent parameter naming across endpoints
+- Validate all query parameters with proper constraints
+- Include supported parameters in API schema definitions
