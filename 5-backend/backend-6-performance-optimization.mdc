@@ -1,7 +1,7 @@
 ---
-description: Performance optimization strategies for API development
+description: USE WHEN optimizing performance, implementing caching, handling async operations, or improving application speed
 globs: ["**/*"]
-alwaysApply: true
+alwaysApply: false
 ---
 
 # Performance Optimization

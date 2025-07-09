@@ -1,7 +1,7 @@
 ---
-description: RESTful API design standards and URL structure guidelines
+description: USE WHEN designing REST APIs, creating endpoints, implementing HTTP methods, or working with API responses and requests
 globs: ["**/*"]
-alwaysApply: true
+alwaysApply: false
 ---
 
 # API Design Standards

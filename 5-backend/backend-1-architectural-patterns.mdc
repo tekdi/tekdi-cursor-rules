@@ -1,7 +1,7 @@
 ---
-description: Framework-agnostic architectural patterns and design principles
+description: USE WHEN designing system architecture, implementing design patterns, organizing code structure, or discussing architectural decisions
 globs: ["**/*"]
-alwaysApply: true
+alwaysApply: false
 ---
 
 # Architectural Patterns

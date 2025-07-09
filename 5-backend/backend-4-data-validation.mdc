@@ -1,7 +1,7 @@
 ---
-description: Data validation and database management standards
+description: USE WHEN implementing data validation, working with databases, handling input validation, or managing data schemas
 globs: ["**/*"]
-alwaysApply: true
+alwaysApply: false
 ---
 
 # Database Management & Data Validation

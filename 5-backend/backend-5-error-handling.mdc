@@ -1,7 +1,7 @@
 ---
-description: Error handling, exception management, and logging standards
+description: USE WHEN implementing error handling, managing exceptions, adding logging, or debugging application issues
 globs: ["**/*"]
-alwaysApply: true
+alwaysApply: false
 ---
 
 # Error Handling & Exception Management

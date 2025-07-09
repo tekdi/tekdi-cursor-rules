@@ -1,7 +1,7 @@
 ---
-description: Code quality standards and project structure guidelines
+description: USE WHEN organizing project structure, implementing code quality standards, managing dependencies, or reviewing code
 globs: ["**/*"]
-alwaysApply: true
+alwaysApply: false
 ---
 
 # Code Quality Standards

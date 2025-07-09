@@ -1,7 +1,7 @@
 ---
-description: Comprehensive security implementation for API endpoints
+description: USE WHEN implementing security features, handling authentication, managing authorization, or addressing security vulnerabilities
 globs: ["**/*"]
-alwaysApply: true
+alwaysApply: false
 ---
 
 # Security Implementation

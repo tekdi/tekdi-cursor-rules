@@ -1,7 +1,7 @@
 ---
-description: Testing standards and requirements for API development
+description: USE WHEN writing tests, implementing testing strategies, setting up test environments, or ensuring code quality through testing
 globs: ["**/*"]
-alwaysApply: true
+alwaysApply: false
 ---
 
 # Testing Standards
