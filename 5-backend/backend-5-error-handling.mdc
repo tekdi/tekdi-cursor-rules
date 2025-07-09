@@ -84,6 +84,14 @@ Use consistent error response structure appropriate for your protocol:
 - Use appropriate log levels to avoid noise
 - Include relevant context without exposing sensitive data
 
+## Logs (12-Factor XI)
+- Treat logs as event streams
+- Write logs to stdout/stderr for aggregation
+- Use structured logging with correlation IDs and context
+- Log all important application events
+- Include request/response correlation in logs
+- Structure logs for centralized collection and analysis
+
 ## Error Classification
 
 ### Client Errors (4xx equivalent)

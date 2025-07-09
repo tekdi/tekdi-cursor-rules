@@ -7,7 +7,6 @@ alwaysApply: true
 # Testing Standards
 
 ## Testing Requirements
-
 - Write unit tests for business logic (>80% coverage)
 - Implement integration tests for service interfaces
 - Use test fixtures and mocks appropriately
@@ -17,7 +16,6 @@ alwaysApply: true
 - Validate input/output contracts and data transformations
 
 ## Test Structure
-
 - Organize tests with clear separation of concerns:
 - Use file, folder, class, method, variable naming conventions as per language
 
@@ -37,7 +35,6 @@ tests/
 ```
 
 ## Unit Testing
-
 - Test business logic in isolation from external dependencies
 - Mock external services and data sources
 - Test both success and failure scenarios
@@ -47,7 +44,6 @@ tests/
 - Ensure tests are deterministic and repeatable
 
 ## Integration Testing
-
 - Test service interfaces end-to-end
 - Test data persistence and retrieval operations
 - Test authentication and authorization mechanisms
@@ -57,7 +53,6 @@ tests/
 - Validate data consistency across system boundaries
 
 ## Test Data Management
-
 - Use test fixtures for consistent and predictable data
 - Clean up test data after each test execution
 - Use separate test environment isolated from production
@@ -67,7 +62,6 @@ tests/
 - Implement proper test data versioning and migration
 
 ## Service Interface Testing
-
 - Test all supported operations and methods
 - Test request/response validation and transformation
 - Test pagination, filtering, and sorting functionality
@@ -77,7 +71,6 @@ tests/
 - Validate error responses and status indicators
 
 ## Test Coverage Goals
-
 - Minimum 80% code coverage for all production code
 - 100% coverage for critical business logic and security components
 - Cover all error paths and edge cases
@@ -87,7 +80,6 @@ tests/
 - Test both happy path and failure scenarios
 
 ## Testing Best Practices
-
 - Write tests before or alongside implementation (TDD/BDD)
 - Keep tests simple, focused, and maintainable
 - Use meaningful assertions that validate expected behavior
@@ -97,7 +89,6 @@ tests/
 - Implement continuous testing in development workflow
 
 ## Security Testing
-
 - Test authentication and authorization mechanisms
 - Test input validation and sanitization
 - Test for common security vulnerabilities

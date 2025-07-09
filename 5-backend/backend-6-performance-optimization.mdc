@@ -7,7 +7,6 @@ alwaysApply: true
 # Performance Optimization
 
 ## Async Programming
-
 - Use asynchronous patterns for I/O operations
 - Implement proper connection pooling for databases and external services
 - Use background tasks for non-blocking operations
@@ -15,7 +14,6 @@ alwaysApply: true
 - Avoid blocking operations on main execution thread
 
 ## Caching Strategy
-
 - Implement multi-level caching (in-memory, distributed cache, persistent storage)
 - Use appropriate TTL values based on data volatility
 - Cache frequently accessed data and expensive computations
@@ -24,7 +22,6 @@ alwaysApply: true
 - Implement cache warming for critical data
 
 ### Caching TTL Guidelines
-
 | Data Type | TTL (seconds) | Use Case |
 |-----------|---------------|----------|
 | **Static Reference** | 3600+ | Countries, categories, constants |
@@ -36,7 +33,6 @@ alwaysApply: true
 | **Computed Results** | 900-3600 | Reports, analytics, aggregations |
 
 ## Database Optimization
-
 - Use proper indexing strategies
 - Implement connection pooling
 - Optimize queries to avoid N+1 problems
@@ -44,8 +40,15 @@ alwaysApply: true
 - Implement transactions for consistency when supported
 - Choose appropriate data store for use case (SQL, NoSQL, Graph, etc.)
 
-## Pagination Implementation
+### Backing Services (12-Factor IV)
+- Treat backing services as attached resources
+- Use connection pooling for database services
+- Implement circuit breakers for external services
+- Handle service failures gracefully
+- Use same backing services across environments
+- Make service connections configurable via environment
 
+## Pagination Implementation
 - Use offset-based pagination for simple cases
 - Implement cursor-based pagination for large datasets
 - Include pagination metadata in responses
@@ -53,7 +56,6 @@ alwaysApply: true
 - Provide navigation links/tokens for next/previous pages
 
 ## Performance Monitoring
-
 - Implement response time tracking in application code
 - Expose performance metrics through health endpoints
 - Log performance issues with appropriate detail levels
@@ -80,3 +82,11 @@ alwaysApply: true
 - **Algorithms**: Use efficient algorithms (O(log n) vs O(n))
 - **Indexing**: Create indexes for frequently queried fields
 - **Caching**: Store computed results to avoid recalculation
+
+### Concurrency (12-Factor VIII)
+- Scale out via the process model
+- Use asynchronous patterns for I/O operations
+- Implement proper connection pooling for databases and external services
+- Use background tasks for non-blocking operations
+- Leverage concurrent operations where appropriate
+- Avoid blocking operations on main execution thread
