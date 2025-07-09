@@ -1,7 +1,7 @@
 ---
-description: Error handling, exception management, and logging standards
+description: USE WHEN implementing error handling, managing exceptions, adding logging, or debugging application issues
 globs: ["**/*"]
-alwaysApply: true
+alwaysApply: false
 ---
 
 # Error Handling & Exception Management
@@ -83,6 +83,14 @@ Use consistent error response structure appropriate for your protocol:
 - Structure logs for centralized aggregation
 - Use appropriate log levels to avoid noise
 - Include relevant context without exposing sensitive data
+
+## Logs (12-Factor XI)
+- Treat logs as event streams
+- Write logs to stdout/stderr for aggregation
+- Use structured logging with correlation IDs and context
+- Log all important application events
+- Include request/response correlation in logs
+- Structure logs for centralized collection and analysis
 
 ## Error Classification
 

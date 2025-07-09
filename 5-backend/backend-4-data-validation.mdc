@@ -1,13 +1,12 @@
 ---
-description: Data validation and database management standards
+description: USE WHEN implementing data validation, working with databases, handling input validation, or managing data schemas
 globs: ["**/*"]
-alwaysApply: true
+alwaysApply: false
 ---
 
 # Database Management & Data Validation
 
 ## Database Design
-
 - Use appropriate data types and constraints
 - Implement proper relationships and foreign keys (for relational databases)
 - Use schema migrations for database changes
@@ -17,7 +16,6 @@ alwaysApply: true
 - Consider data normalization vs denormalization based on use case
 
 ## Schema Definition
-
 - Define clear data models and schemas
 - Use validation metadata appropriate for your language/framework
 - Implement custom validators for business rules
@@ -27,7 +25,6 @@ alwaysApply: true
 - Specify validation rules declaratively when possible
 
 ## Database Operations
-
 - Use parameterized queries to prevent injection attacks
 - Implement proper connection pooling
 - Use transactions for multi-step operations
@@ -38,7 +35,6 @@ alwaysApply: true
 
 
 ## Input Validation
-
 - Validate all input parameters (path, query, body)
 - Use schema validation libraries appropriate for your framework
 - Implement field-level validation with clear error messages
@@ -48,7 +44,6 @@ alwaysApply: true
 - Use allowlists rather than blocklists when possible
 
 ## Data Validation Rules
-
 - Validate data types, formats, and ranges
 - Implement business rule validation
 - Use schema validation for complex objects
@@ -58,7 +53,6 @@ alwaysApply: true
 - Check data consistency across related entities
 
 ## Validation Error Handling
-
 - Return structured validation errors with consistent format
 - Include field names, error codes, and descriptive messages
 - Provide user-friendly error messages
@@ -68,7 +62,6 @@ alwaysApply: true
 - Distinguish between client errors and server errors
 
 ## Data Sanitization
-
 - Sanitize input data before processing
 - Remove or escape dangerous characters
 - Normalize data formats (trim whitespace, standardize case)

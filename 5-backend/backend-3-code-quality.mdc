@@ -1,13 +1,19 @@
 ---
-description: Code quality standards and project structure guidelines
+description: USE WHEN organizing project structure, implementing code quality standards, managing dependencies, or reviewing code
 globs: ["**/*"]
-alwaysApply: true
+alwaysApply: false
 ---
 
 # Code Quality Standards
 
-## Project Structure
+## Codebase Management (12-Factor I)
+- One codebase tracked in revision control, many deploys
+- Use version control for all application code
+- Maintain single source of truth for application state
+- Structure code to support multiple deployment environments
+- Use branching strategies appropriate for your workflow
 
+## Project Structure
 - Use layered architecture with clear separation of concerns
 - Separate presentation, business logic, and data access layers
 - Implement dependency injection for loose coupling
@@ -15,7 +21,6 @@ alwaysApply: true
 - Follow consistent file and folder naming conventions
 
 ## Naming Conventions
-
 | Element | Convention | 
 |---------|------------|
 | **Files/Folders** | Follow project conventions | 
@@ -26,7 +31,6 @@ alwaysApply: true
 | **Interfaces** | Follow language conventions |
 
 ## Code Organization
-
 - Keep functions small and focused (< 20 lines)
 - Use meaningful and descriptive names
 - Implement proper error handling
@@ -35,8 +39,15 @@ alwaysApply: true
 - Group related functionality together
 - Minimize dependencies between modules
 
-## Type Safety
+## Dependency Management (12-Factor II)
+- Explicitly declare and isolate dependencies
+- Use dependency management tools appropriate for your language
+- Never rely on system-wide packages
+- Include exact version numbers in dependency declarations
+- Use lock files to ensure consistent dependency versions
+- Isolate dependencies from system environment
 
+## Type Safety
 - Use static typing when available in your language
 - Implement proper interface/contract definitions
 - Use generic/template types where appropriate
@@ -45,7 +56,6 @@ alwaysApply: true
 - Validate data at system boundaries
 
 ## Code Review Guidelines
-
 - [ ] Code follows consistent naming conventions
 - [ ] Business logic is properly separated from presentation logic
 - [ ] No hardcoded values or credentials
@@ -58,7 +68,6 @@ alwaysApply: true
 - [ ] Dependencies are minimal and justified
 
 ## Documentation Standards
-
 - Add clear comments and docstrings to all public APIs and interfaces
 - Include code examples in function/method documentation
 - Use appropriate documentation format for your language
@@ -66,4 +75,3 @@ alwaysApply: true
 - Document configuration options and environment variables in code
 - Use clear and concise language in code comments
 - Include setup and usage instructions in README files
- 

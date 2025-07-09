@@ -1,7 +1,7 @@
 ---
-description: Framework-agnostic architectural patterns and design principles
+description: USE WHEN designing system architecture, implementing design patterns, organizing code structure, or discussing architectural decisions
 globs: ["**/*"]
-alwaysApply: true
+alwaysApply: false
 ---
 
 # Architectural Patterns
@@ -30,7 +30,6 @@ alwaysApply: true
 - Implement proper error handling for data operations
 
 ## Dependency Injection
-
 - Use constructor injection for required dependencies
 - Implement proper dependency interfaces/contracts
 - Avoid circular dependencies
@@ -132,3 +131,59 @@ alwaysApply: true
 - Handle event ordering when necessary
 - Implement event sourcing where appropriate
 - Log event processing results and failures
+
+## 12-Factor App Principles
+
+### Configuration Management (12-Factor III)
+- Store configuration in environment variables
+- Use different configs for different environments
+- Never commit secrets to version control
+- Implement config validation on application startup
+- Group related config into logical sections
+- Provide sensible defaults where appropriate
+
+### Build, Release, Run (12-Factor V)
+- Strictly separate build and run stages
+- Build stage: transforms code into executable bundle
+- Release stage: combines build with config for deployment
+- Run stage: executes application in target environment
+- Use immutable releases with unique identifiers
+- Structure code to support automated build processes
+
+### Process Architecture (12-Factor VI)
+- Design stateless processes that share nothing
+- Store session state in external stores (database, cache)
+- Make processes disposable and easily replaceable
+- Use process isolation for different concerns
+- Implement proper process communication patterns
+
+### Port Binding (12-Factor VII)
+- Export services via port binding
+- Make applications self-contained and portable
+- Bind to specific ports for service communication
+- Use environment variables for port configuration
+- Implement proper service discovery mechanisms
+
+### Disposability (12-Factor IX)
+- Implement proper signal handling for shutdown
+- Handle termination signals gracefully
+- Minimize startup time through efficient initialization
+- Ensure processes can be stopped and started quickly
+- Handle unexpected termination gracefully
+- Complete existing requests before shutdown
+
+### Dev/Prod Parity (12-Factor X)
+- Keep development, staging, and production as similar as possible
+- Use same backing services across environments
+- Structure code for frequent deployments
+- Use same tools and dependencies across environments
+- Maintain consistent data stores and service versions
+- Structure code to support containerized deployments
+
+### Admin Processes (12-Factor XII)
+- Run admin/management tasks as one-off processes
+- Use same environment and codebase for admin tasks
+- Include admin code in application repository
+- Use same dependency isolation for admin processes
+- Implement admin tasks as separate commands/scripts
+- Avoid direct database manipulation outside of application
