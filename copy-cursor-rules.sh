@@ -27,19 +27,19 @@ trap cleanup EXIT
 
 # Function to print colored output
 print_info() {
-    printf "${BLUE}[INFO]${NC} %s\n" "$1"
+    printf "${BLUE}[INFO] %s${NC}\n" "$1"
 }
 
 print_success() {
-    printf "${GREEN}[SUCCESS]${NC} %s\n" "$1"
+    printf "${GREEN}[SUCCESS] %s${NC}\n" "$1"
 }
 
 print_warning() {
-    printf "${YELLOW}[WARNING]${NC} %s\n" "$1"
+    printf "${YELLOW}[WARNING] %s${NC}\n" "$1"
 }
 
 print_error() {
-    printf "${RED}[ERROR]${NC} %s\n" "$1"
+    printf "${RED}[ERROR] %s${NC}\n" "$1"
 }
 
 # Function to validate directory path
