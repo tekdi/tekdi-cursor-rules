@@ -1,0 +1,654 @@
+---
+description: USE WHEN implementing error handling, exception filters, logging, monitoring, or debugging applications
+globs: ["**/*.filter.ts", "**/*.exception.ts", "**/*.service.ts", "**/*.interceptor.ts"]
+alwaysApply: false
+---
+
+# NestJS Error Handling & Monitoring
+
+## Exception Management
+
+### Exception Hierarchy Rules
+- Create custom exception classes for different error types
+- Implement global exception handlers for consistent error responses
+- Use structured error responses with correlation IDs
+- Log errors with appropriate context and severity levels
+- Handle validation errors with field-level details
+
+```typescript
+export abstract class BaseException extends Error {
+  abstract readonly statusCode: number;
+  abstract readonly errorCode: string;
+  readonly timestamp: string;
+  readonly correlationId: string;
+
+  constructor(
+    message: string,
+    public readonly context?: Record<string, any>,
+    correlationId?: string,
+  ) {
+    super(message);
+    this.name = this.constructor.name;
+    this.timestamp = new Date().toISOString();
+    this.correlationId = correlationId || randomUUID();
+    
+    Error.captureStackTrace(this, this.constructor);
+  }
+}
+
+export class BusinessLogicException extends BaseException {
+  readonly statusCode = HttpStatus.UNPROCESSABLE_ENTITY;
+  readonly errorCode = 'BUSINESS_LOGIC_ERROR';
+}
+
+export class ValidationException extends BaseException {
+  readonly statusCode = HttpStatus.BAD_REQUEST;
+  readonly errorCode = 'VALIDATION_ERROR';
+}
+
+export class ResourceNotFoundException extends BaseException {
+  readonly statusCode = HttpStatus.NOT_FOUND;
+  readonly errorCode = 'RESOURCE_NOT_FOUND';
+}
+
+export class AuthenticationException extends BaseException {
+  readonly statusCode = HttpStatus.UNAUTHORIZED;
+  readonly errorCode = 'AUTHENTICATION_ERROR';
+}
+```
+
+### Domain-Specific Exceptions
+```typescript
+export class UserNotFoundException extends ResourceNotFoundException {
+  constructor(identifier: string) {
+    super(`User not found: ${identifier}`, { identifier });
+  }
+}
+
+export class EmailAlreadyExistsException extends BusinessLogicException {
+  constructor(email: string) {
+    super(`Email already exists: ${email}`, { email });
+  }
+}
+
+export class InvalidCredentialsException extends AuthenticationException {
+  constructor() {
+    super('Invalid email or password');
+  }
+}
+
+export class InsufficientPermissionsException extends AuthorizationException {
+  constructor(resource: string, action: string) {
+    super(`Insufficient permissions for ${action} on ${resource}`, {
+      resource,
+      action,
+    });
+  }
+}
+```
+
+## Global Exception Filter
+
+### Comprehensive Exception Filter
+```typescript
+@Catch()
+export class GlobalExceptionFilter implements ExceptionFilter {
+  private readonly logger = new Logger(GlobalExceptionFilter.name);
+
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly metricsService: MetricsService,
+  ) {}
+
+  catch(exception: unknown, host: ArgumentsHost): void {
+    const ctx = host.switchToHttp();
+    const response = ctx.getResponse<Response>();
+    const request = ctx.getRequest<Request>();
+
+    const errorResponse = this.buildErrorResponse(exception, request);
+    this.logError(exception, request, errorResponse);
+    this.metricsService.incrementErrorCounter(errorResponse.error.code, errorResponse.statusCode);
+
+    response.status(errorResponse.statusCode).json(errorResponse);
+  }
+
+  private buildErrorResponse(exception: unknown, request: Request): ErrorResponse {
+    const correlationId = request.headers['x-correlation-id'] as string || randomUUID();
+    
+    if (exception instanceof BaseException) {
+      return {
+        success: false,
+        statusCode: exception.statusCode,
+        error: {
+          code: exception.errorCode,
+          message: exception.message,
+          details: this.getErrorDetails(exception),
+        },
+        metadata: {
+          timestamp: exception.timestamp,
+          correlationId: exception.correlationId,
+          path: request.url,
+          method: request.method,
+        },
+      };
+    }
+
+    // Handle other exception types...
+    return this.handleUnknownError(exception, request, correlationId);
+  }
+}
+```
+
+### Winston Logger Configuration
+```typescript
+@Injectable()
+export class LoggerService extends Logger {
+  private winston: winston.Logger;
+
+  constructor(private configService: ConfigService) {
+    super();
+    this.winston = this.createWinstonLogger();
+  }
+
+  private createWinstonLogger(): winston.Logger {
+    const logLevel = this.configService.get('LOG_LEVEL', 'info');
+    const nodeEnv = this.configService.get('NODE_ENV', 'development');
+
+    const transports: winston.transport[] = [
+      new winston.transports.Console({
+        format: winston.format.combine(
+          winston.format.timestamp(),
+          winston.format.colorize({ all: nodeEnv === 'development' }),
+          winston.format.printf(({ timestamp, level, message, context, ...meta }) => {
+            const contextStr = context ? `[${context}] ` : '';
+            const metaStr = Object.keys(meta).length ? ` ${JSON.stringify(meta)}` : '';
+            return `${timestamp} ${level}: ${contextStr}${message}${metaStr}`;
+          }),
+        ),
+      }),
+    ];
+
+    if (nodeEnv === 'production') {
+      transports.push(
+        new winston.transports.File({
+          filename: 'logs/error.log',
+          level: 'error',
+          maxsize: 5242880, // 5MB
+          maxFiles: 5,
+        }),
+      );
+    }
+
+    return winston.createLogger({
+      level: logLevel,
+      transports,
+      defaultMeta: { service: 'nestjs-api', environment: nodeEnv },
+    });
+  }
+}
+```
+
+### Request Logging Interceptor
+```typescript
+@Injectable()
+export class RequestLoggingInterceptor implements NestInterceptor {
+  constructor(private logger: LoggerService) {}
+
+  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+    const request = context.switchToHttp().getRequest();
+    const response = context.switchToHttp().getResponse();
+    const { method, url, headers, body } = request;
+    const correlationId = headers['x-correlation-id'] || randomUUID();
+    
+    // Set correlation ID for request context
+    request.correlationId = correlationId;
+    response.setHeader('X-Correlation-ID', correlationId);
+
+    const startTime = Date.now();
+
+    this.logger.log('Incoming request', {
+      correlationId,
+      method,
+      url,
+      userAgent: headers['user-agent'],
+      ip: request.ip,
+      userId: request.user?.id,
+      body: this.sanitizeBody(body),
+    });
+
+    return next.handle().pipe(
+      tap((data) => {
+        const duration = Date.now() - startTime;
+        this.logger.log('Request completed', {
+          correlationId,
+          method,
+          url,
+          statusCode: response.statusCode,
+          duration: `${duration}ms`,
+          responseSize: JSON.stringify(data).length,
+        });
+      }),
+      catchError((error) => {
+        const duration = Date.now() - startTime;
+        this.logger.error('Request failed', error, {
+          correlationId,
+          method,
+          url,
+          duration: `${duration}ms`,
+        });
+        throw error;
+      }),
+    );
+  }
+
+  private sanitizeBody(body: any): any {
+    if (!body || typeof body !== 'object') {
+      return body;
+    }
+
+    const sanitized = { ...body };
+    const sensitiveFields = ['password', 'token', 'secret', 'key', 'authorization'];
+
+    sensitiveFields.forEach(field => {
+      if (sanitized[field]) {
+        sanitized[field] = '[REDACTED]';
+      }
+    });
+
+    return sanitized;
+  }
+}
+```
+
+## Error Monitoring & Alerting
+
+### Metrics Service
+```typescript
+@Injectable()
+export class MetricsService {
+  private errorCounter = new Map<string, number>();
+  private responseTimeHistogram = new Map<string, number[]>();
+
+  constructor(private logger: LoggerService) {}
+
+  incrementErrorCounter(errorCode: string, statusCode: number): void {
+    const key = `${errorCode}_${statusCode}`;
+    const current = this.errorCounter.get(key) || 0;
+    this.errorCounter.set(key, current + 1);
+
+    // Log high error rates for monitoring
+    if (current > 10) {
+      this.logger.error('High error rate detected', undefined, {
+        errorCode,
+        statusCode,
+        count: current,
+      });
+    }
+  }
+
+  recordResponseTime(endpoint: string, duration: number): void {
+    if (!this.responseTimeHistogram.has(endpoint)) {
+      this.responseTimeHistogram.set(endpoint, []);
+    }
+
+    const times = this.responseTimeHistogram.get(endpoint)!;
+    times.push(duration);
+
+    // Keep only last 100 measurements
+    if (times.length > 100) {
+      times.shift();
+    }
+
+    // Log slow responses for monitoring
+    if (duration > 5000) {
+      this.logger.warn('Slow response detected', {
+        endpoint,
+        duration: `${duration}ms`,
+      });
+    }
+  }
+
+  getErrorMetrics(): Record<string, number> {
+    return Object.fromEntries(this.errorCounter);
+  }
+
+  getResponseTimeMetrics(): Record<string, { avg: number; max: number; min: number }> {
+    const metrics: Record<string, { avg: number; max: number; min: number }> = {};
+
+    for (const [endpoint, times] of this.responseTimeHistogram) {
+      if (times.length > 0) {
+        metrics[endpoint] = {
+          avg: times.reduce((sum, time) => sum + time, 0) / times.length,
+          max: Math.max(...times),
+          min: Math.min(...times),
+        };
+      }
+    }
+
+    return metrics;
+  }
+
+  resetMetrics(): void {
+    this.errorCounter.clear();
+    this.responseTimeHistogram.clear();
+  }
+}
+```
+
+### Health Check Service
+```typescript
+@Injectable()
+export class HealthCheckService {
+  constructor(
+    private connection: Connection,
+    private cacheService: CacheService,
+    private logger: LoggerService,
+  ) {}
+
+  async checkHealth(): Promise<HealthStatus> {
+    const checks = await Promise.allSettled([
+      this.checkDatabase(),
+      this.checkCache(),
+      this.checkMemory(),
+      this.checkDisk(),
+    ]);
+
+    const results = checks.map((check, index) => {
+      const names = ['database', 'cache', 'memory', 'disk'];
+      return {
+        name: names[index],
+        status: check.status === 'fulfilled' ? 'healthy' : 'unhealthy',
+        details: check.status === 'fulfilled' ? check.value : check.reason,
+      };
+    });
+
+    const overallStatus = results.every(r => r.status === 'healthy') ? 'healthy' : 'unhealthy';
+
+    if (overallStatus === 'unhealthy') {
+      this.logger.error('Health check failed', undefined, { results });
+    }
+
+    return {
+      status: overallStatus,
+      timestamp: new Date().toISOString(),
+      checks: results,
+    };
+  }
+
+  private async checkDatabase(): Promise<any> {
+    const start = Date.now();
+    await this.connection.query('SELECT 1');
+    const duration = Date.now() - start;
+
+    return {
+      connected: this.connection.isConnected,
+      responseTime: `${duration}ms`,
+    };
+  }
+
+  private async checkCache(): Promise<any> {
+    const start = Date.now();
+    const testKey = 'health-check';
+    const testValue = 'ok';
+    
+    await this.cacheService.set(testKey, testValue, 60);
+    const retrieved = await this.cacheService.get(testKey);
+    await this.cacheService.del(testKey);
+    
+    const duration = Date.now() - start;
+
+    return {
+      connected: retrieved === testValue,
+      responseTime: `${duration}ms`,
+    };
+  }
+
+  private async checkMemory(): Promise<any> {
+    const usage = process.memoryUsage();
+    const totalMemory = usage.heapTotal / 1024 / 1024; // MB
+    const usedMemory = usage.heapUsed / 1024 / 1024; // MB
+    const memoryUsagePercent = (usedMemory / totalMemory) * 100;
+
+    return {
+      totalMemory: `${totalMemory.toFixed(2)} MB`,
+      usedMemory: `${usedMemory.toFixed(2)} MB`,
+      memoryUsagePercent: `${memoryUsagePercent.toFixed(2)}%`,
+      healthy: memoryUsagePercent < 80,
+    };
+  }
+
+  private async checkDisk(): Promise<any> {
+    // This is a simplified check - in production, you'd use fs.statSync
+    return {
+      healthy: true,
+      message: 'Disk check not implemented',
+    };
+  }
+}
+```
+
+## Error Recovery & Circuit Breaker
+
+### Circuit Breaker Implementation
+```typescript
+@Injectable()
+export class CircuitBreakerService {
+  private circuits = new Map<string, CircuitState>();
+
+  constructor(private logger: LoggerService) {}
+
+  async execute<T>(
+    name: string,
+    fn: () => Promise<T>,
+    options: CircuitBreakerOptions = {},
+  ): Promise<T> {
+    const circuit = this.getCircuit(name, options);
+
+    if (circuit.state === 'OPEN') {
+      if (Date.now() - circuit.lastFailureTime < circuit.timeout) {
+        throw new ExternalServiceException(`Circuit breaker ${name} is OPEN`);
+      }
+      // Try to close circuit
+      circuit.state = 'HALF_OPEN';
+    }
+
+    try {
+      const result = await fn();
+      
+      if (circuit.state === 'HALF_OPEN') {
+        circuit.state = 'CLOSED';
+        circuit.failureCount = 0;
+        this.logger.log(`Circuit breaker ${name} closed`);
+      }
+
+      return result;
+    } catch (error) {
+      circuit.failureCount++;
+      circuit.lastFailureTime = Date.now();
+
+      if (circuit.failureCount >= circuit.failureThreshold) {
+        circuit.state = 'OPEN';
+        this.logger.error(`Circuit breaker ${name} opened`, error, {
+          failureCount: circuit.failureCount,
+          failureThreshold: circuit.failureThreshold,
+        });
+      }
+
+      throw error;
+    }
+  }
+
+  private getCircuit(name: string, options: CircuitBreakerOptions): CircuitState {
+    if (!this.circuits.has(name)) {
+      this.circuits.set(name, {
+        state: 'CLOSED',
+        failureCount: 0,
+        lastFailureTime: 0,
+        failureThreshold: options.failureThreshold || 5,
+        timeout: options.timeout || 60000, // 1 minute
+      });
+    }
+
+    return this.circuits.get(name)!;
+  }
+
+  getCircuitStatus(name: string): CircuitState | undefined {
+    return this.circuits.get(name);
+  }
+
+  resetCircuit(name: string): void {
+    if (this.circuits.has(name)) {
+      const circuit = this.circuits.get(name)!;
+      circuit.state = 'CLOSED';
+      circuit.failureCount = 0;
+      circuit.lastFailureTime = 0;
+      this.logger.log(`Circuit breaker ${name} reset`);
+    }
+  }
+}
+
+interface CircuitBreakerOptions {
+  failureThreshold?: number;
+  timeout?: number;
+}
+
+interface CircuitState {
+  state: 'CLOSED' | 'OPEN' | 'HALF_OPEN';
+  failureCount: number;
+  lastFailureTime: number;
+  failureThreshold: number;
+  timeout: number;
+}
+```
+
+### Retry Mechanism
+```typescript
+@Injectable()
+export class RetryService {
+  constructor(private logger: LoggerService) {}
+
+  async withRetry<T>(
+    fn: () => Promise<T>,
+    options: RetryOptions = {},
+  ): Promise<T> {
+    const {
+      maxAttempts = 3,
+      delay = 1000,
+      backoffMultiplier = 2,
+      retryCondition = (error) => true,
+    } = options;
+
+    let lastError: Error;
+    let currentDelay = delay;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        return await fn();
+      } catch (error) {
+        lastError = error as Error;
+
+        if (attempt === maxAttempts || !retryCondition(error)) {
+          throw error;
+        }
+
+        this.logger.warn(`Attempt ${attempt} failed, retrying in ${currentDelay}ms`, {
+          error: lastError.message,
+          attempt,
+          maxAttempts,
+        });
+
+        await this.sleep(currentDelay);
+        currentDelay *= backoffMultiplier;
+      }
+    }
+
+    throw lastError!;
+  }
+
+  private sleep(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+}
+
+interface RetryOptions {
+  maxAttempts?: number;
+  delay?: number;
+  backoffMultiplier?: number;
+  retryCondition?: (error: any) => boolean;
+}
+```
+
+## Error Response Types
+
+### Standardized Error Response Interface
+```typescript
+export interface ErrorResponse {
+  success: false;
+  statusCode: number;
+  error: {
+    code: string;
+    message: string;
+    details?: any;
+  };
+  metadata: {
+    timestamp: string;
+    correlationId: string;
+    path: string;
+    method: string;
+  };
+}
+
+export interface ValidationError {
+  field: string;
+  message: string;
+  value: any;
+}
+
+export interface HealthStatus {
+  status: 'healthy' | 'unhealthy';
+  timestamp: string;
+  checks: Array<{
+    name: string;
+    status: 'healthy' | 'unhealthy';
+    details: any;
+  }>;
+}
+```
+
+## Error Handling Anti-Patterns to Avoid
+
+### Exception Handling Anti-Patterns
+- Don't catch exceptions without proper handling
+- Don't expose sensitive information in error messages
+- Don't ignore error logging and monitoring
+- Don't use generic error messages for all scenarios
+- Don't skip error correlation and tracking
+- Don't throw exceptions for expected business logic failures
+- Don't ignore proper exception hierarchy
+
+### Logging Anti-Patterns
+- Don't log sensitive data (passwords, tokens, personal info)
+- Don't ignore structured logging formats
+- Don't skip correlation IDs for request tracking
+- Don't log everything at ERROR level
+- Don't ignore log rotation and retention policies
+- Don't skip performance impact of logging
+- Don't ignore centralized logging in distributed systems
+
+### Monitoring Anti-Patterns
+- Don't ignore error rate monitoring and alerting
+- Don't skip health check endpoints
+- Don't ignore performance metrics collection
+- Don't skip error pattern analysis
+- Don't ignore resource utilization monitoring
+- Don't skip external service dependency monitoring
+- Don't ignore proper incident response procedures
+
+### Recovery Anti-Patterns
+- Don't ignore circuit breaker patterns for external services
+- Don't skip retry mechanisms with exponential backoff
+- Don't ignore graceful degradation strategies
+- Don't skip proper timeout configurations
+- Don't ignore bulkhead isolation patterns
+- Don't skip failover and redundancy planning
+- Don't ignore proper error recovery testing

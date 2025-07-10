@@ -1,0 +1,471 @@
+---
+description: USE WHEN designing RESTful APIs, implementing controllers, handling HTTP requests/responses, or creating API documentation
+globs: ["**/*.controller.ts", "**/*.dto.ts", "**/*.service.ts"]
+alwaysApply: false
+---
+
+# NestJS RESTful API Design Standards
+
+## RESTful Design Principles
+
+### Resource-Based URL Design Rules
+- Use resource-based URLs with proper HTTP methods
+- Always include API versioning: `/api/v1/`, `/api/v2/`
+- Use plural nouns for collections: `/api/v1/users`, `/api/v1/orders`
+- Use sub-resources for relationships: `/api/v1/users/{id}/orders`
+- Avoid action-based URLs: use `/api/v1/users` not `/api/v1/getUsers`
+
+### URL Structure Standards
+- Use kebab-case for URLs: `/api/v1/weather-stations/{id}`
+- Use consistent patterns across all endpoints
+- Include resource identifiers in path parameters
+- Use query parameters for filtering, sorting, and pagination
+
+```typescript
+// Good URL patterns
+GET    /api/v1/users                    // Get all users
+GET    /api/v1/users/{id}               // Get specific user
+POST   /api/v1/users                    // Create new user
+PUT    /api/v1/users/{id}               // Update entire user
+PATCH  /api/v1/users/{id}               // Partial user update
+DELETE /api/v1/users/{id}               // Delete user
+GET    /api/v1/users/{id}/orders        // Get user's orders
+```
+
+## HTTP Methods and Status Codes
+
+### HTTP Method Implementation Rules
+- **GET**: Retrieve resources (idempotent, safe)
+- **POST**: Create new resources (non-idempotent)
+- **PUT**: Update entire resources (idempotent)
+- **PATCH**: Partial updates (idempotent)
+- **DELETE**: Remove resources (idempotent)
+
+### Status Code Standards
+```typescript
+// Success responses
+200 OK          // GET, PUT, PATCH successful
+201 Created     // POST successful
+204 No Content  // DELETE successful
+
+// Client error responses
+400 Bad Request     // Invalid request data
+401 Unauthorized    // Authentication required
+403 Forbidden       // Access denied
+404 Not Found       // Resource doesn't exist
+409 Conflict        // Resource conflict
+422 Unprocessable   // Validation errors
+429 Too Many Requests // Rate limited
+
+// Server error responses
+500 Internal Server Error // Unexpected server error
+502 Bad Gateway          // External service error
+503 Service Unavailable  // Service temporarily down
+```
+
+## Controller Implementation Patterns
+
+### Controller Structure Rules
+- Keep controllers focused on HTTP concerns only
+- Use proper decorators for HTTP methods and status codes
+- Implement comprehensive API documentation with Swagger
+- Handle request/response transformation properly
+- Delegate all business logic to service layer
+
+```typescript
+@Controller('api/v1/users')
+@ApiTags('users')
+@UseGuards(JwtAuthGuard)
+export class UsersController {
+  constructor(private readonly usersService: UsersService) {}
+
+  @Get()
+  @ApiOperation({ summary: 'Get all users' })
+  @ApiResponse({ status: 200, type: PaginatedUserResponse })
+  async findAll(@Query() paginationDto: PaginationDto): Promise<PaginatedResponse<UserResponseDto>> {
+    return this.usersService.findAll(paginationDto);
+  }
+
+  @Post()
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Create a new user' })
+  @ApiResponse({ status: 201, type: UserResponseDto })
+  async create(@Body() createUserDto: CreateUserDto): Promise<UserResponseDto> {
+    return this.usersService.create(createUserDto);
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Get user by ID' })
+  async findOne(@Param('id') id: string): Promise<UserResponseDto> {
+    return this.usersService.findById(id);
+  }
+}
+```
+
+## Request/Response Patterns
+
+### Consistent Response Format Rules
+- Use standardized response structure across all endpoints
+- Include success status, data, and metadata in responses
+- Implement proper error response format
+- Use correlation IDs for request tracking
+
+```typescript
+// Success response structure
+interface ApiResponse<T> {
+  success: true;
+  data: T;
+  metadata?: {
+    timestamp: string;
+    requestId: string;
+    version: string;
+  };
+}
+
+// Error response structure
+interface ApiErrorResponse {
+  success: false;
+  error: {
+    code: string;
+    message: string;
+    details?: any;
+  };
+  metadata: {
+    timestamp: string;
+    requestId: string;
+    path: string;
+    method: string;
+  };
+}
+```
+
+### Pagination Response Rules
+- Include pagination metadata in all paginated responses
+- Use consistent pagination parameters across endpoints
+- Provide navigation information (hasNext, hasPrevious)
+- Include total count and page information
+
+```typescript
+interface PaginatedResponse<T> {
+  items: T[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrevious: boolean;
+  };
+}
+```
+
+## Request Validation with DTOs
+
+### Input DTO Rules
+- Use class-validator decorators for all input validation
+- Implement proper transformation with class-transformer
+- Provide clear validation error messages
+- Use appropriate validation constraints for each field
+
+```typescript
+export class CreateUserDto {
+  @ApiProperty({ description: 'User email address', example: 'user@example.com' })
+  @IsEmail({}, { message: 'Please provide a valid email address' })
+  @Transform(({ value }) => value.toLowerCase().trim())
+  email: string;
+
+  @ApiProperty({ description: 'User password', minLength: 8 })
+  @IsString()
+  @MinLength(8, { message: 'Password must be at least 8 characters long' })
+  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/, {
+    message: 'Password must contain uppercase, lowercase, number and special character'
+  })
+  password: string;
+
+  @ApiProperty({ description: 'User first name', example: 'John' })
+  @IsString()
+  @Length(2, 50, { message: 'First name must be between 2 and 50 characters' })
+  firstName: string;
+}
+```
+
+### Query Parameter DTO Rules
+- Use Type() decorator for proper type conversion
+- Implement validation for all query parameters
+- Provide default values where appropriate
+- Use enums for limited value sets
+
+```typescript
+export class PaginationDto {
+  @ApiProperty({ description: 'Page number', default: 1, minimum: 1 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt({ message: 'Page must be an integer' })
+  @Min(1, { message: 'Page must be greater than 0' })
+  page: number = 1;
+
+  @ApiProperty({ description: 'Items per page', default: 10, minimum: 1, maximum: 100 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt({ message: 'Limit must be an integer' })
+  @Min(1, { message: 'Limit must be greater than 0' })
+  @Max(100, { message: 'Limit must not exceed 100' })
+  limit: number = 10;
+}
+```
+
+### Response DTO Rules
+- Exclude sensitive fields from response DTOs
+- Use proper API documentation decorators
+- Include computed fields where appropriate
+- Maintain consistent field naming across DTOs
+
+```typescript
+export class UserResponseDto {
+  @ApiProperty({ description: 'User ID', example: '550e8400-e29b-41d4-a716-446655440000' })
+  id: string;
+
+  @ApiProperty({ description: 'User email', example: 'user@example.com' })
+  email: string;
+
+  @ApiProperty({ description: 'User first name', example: 'John' })
+  firstName: string;
+
+  @ApiProperty({ description: 'User last name', example: 'Doe' })
+  lastName: string;
+
+  @ApiProperty({ description: 'User role', enum: UserRole })
+  role: UserRole;
+
+  @ApiProperty({ description: 'User creation date', example: '2023-01-01T00:00:00.000Z' })
+  createdAt: Date;
+}
+```
+
+## API Versioning Strategies
+
+### URL Path Versioning Rules
+- Use URL path versioning as the primary strategy
+- Maintain backward compatibility when possible
+- Document breaking changes between versions
+- Use semantic versioning principles
+
+```typescript
+// Version 1
+@Controller('api/v1/users')
+export class UsersV1Controller {
+  // V1 implementation
+}
+
+// Version 2
+@Controller('api/v2/users')
+export class UsersV2Controller {
+  // V2 implementation with breaking changes
+}
+```
+
+### Header-Based Versioning Rules
+- Use header-based versioning for advanced scenarios
+- Include version information in response headers
+- Implement proper version negotiation
+- Handle unsupported versions gracefully
+
+```typescript
+@Controller('api/users')
+export class UsersController {
+  @Get()
+  @Header('API-Version', '1.0')
+  async findAllV1(): Promise<UserV1[]> {
+    // V1 implementation
+  }
+}
+```
+
+## Query Parameter Handling
+
+### Filtering and Searching Rules
+- Use consistent parameter naming across endpoints
+- Implement proper validation for all query parameters
+- Support multiple filter criteria
+- Use appropriate data types for filter values
+
+```typescript
+@Get()
+async findAll(
+  @Query('status') status?: UserStatus,
+  @Query('search') search?: string,
+  @Query('createdAfter') createdAfter?: Date,
+  @Query('createdBefore') createdBefore?: Date,
+): Promise<UserResponseDto[]> {
+  return this.usersService.findAll({
+    status,
+    search,
+    createdAfter,
+    createdBefore,
+  });
+}
+```
+
+### Advanced Query DTO Rules
+- Group related query parameters in DTOs
+- Extend base pagination DTO for consistency
+- Use optional decorators for non-required parameters
+- Implement proper type conversion and validation
+
+```typescript
+export class UserQueryDto extends PaginationDto {
+  @ApiProperty({ description: 'Filter by user status', enum: UserStatus, required: false })
+  @IsOptional()
+  @IsEnum(UserStatus)
+  status?: UserStatus;
+
+  @ApiProperty({ description: 'Search in name and email', required: false })
+  @IsOptional()
+  @IsString()
+  @Length(1, 100)
+  search?: string;
+
+  @ApiProperty({ description: 'Include related entities', required: false })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  include?: string[];
+}
+```
+
+## Error Handling in Controllers
+
+### Consistent Error Response Rules
+- Use global exception filters for consistent error handling
+- Include correlation IDs in all error responses
+- Provide appropriate HTTP status codes
+- Log errors with proper context
+
+```typescript
+@Catch()
+export class GlobalExceptionFilter implements ExceptionFilter {
+  catch(exception: unknown, host: ArgumentsHost): void {
+    const ctx = host.switchToHttp();
+    const response = ctx.getResponse<Response>();
+    const request = ctx.getRequest<Request>();
+
+    const status = exception instanceof HttpException
+      ? exception.getStatus()
+      : HttpStatus.INTERNAL_SERVER_ERROR;
+
+    const errorResponse = {
+      success: false,
+      error: {
+        code: this.getErrorCode(exception),
+        message: this.getErrorMessage(exception),
+      },
+      metadata: {
+        timestamp: new Date().toISOString(),
+        requestId: request.headers['x-request-id'] || 'unknown',
+        path: request.url,
+        method: request.method,
+      },
+    };
+
+    response.status(status).json(errorResponse);
+  }
+}
+```
+
+## Performance Optimization
+
+### Response Optimization Rules
+- Use caching interceptors for frequently accessed data
+- Implement proper cache headers for client-side caching
+- Use compression for large responses
+- Implement field selection for partial responses
+
+```typescript
+@Get()
+@UseInterceptors(CacheInterceptor)
+@Header('Cache-Control', 'public, max-age=300')
+async findAll(): Promise<UserResponseDto[]> {
+  return this.usersService.findAll();
+}
+```
+
+### Field Selection Rules
+- Allow clients to specify which fields to return
+- Implement proper field validation
+- Use projection at the service layer
+- Provide sensible defaults for field selection
+
+```typescript
+@Get(':id')
+async findOne(
+  @Param('id') id: string,
+  @Query('fields') fields?: string,
+): Promise<Partial<UserResponseDto>> {
+  const selectedFields = fields?.split(',') || [];
+  return this.usersService.findOne(id, selectedFields);
+}
+```
+
+## API Documentation Best Practices
+
+### Swagger Documentation Rules
+- Use comprehensive API documentation decorators
+- Include request/response examples
+- Document all possible error responses
+- Provide clear operation descriptions
+
+```typescript
+@Post()
+@ApiOperation({
+  summary: 'Create a new user',
+  description: 'Creates a new user account with the provided information. Email must be unique.',
+})
+@ApiBody({
+  type: CreateUserDto,
+  examples: {
+    user: {
+      summary: 'Standard user creation',
+      value: {
+        email: 'john.doe@example.com',
+        firstName: 'John',
+        lastName: 'Doe',
+        password: 'SecurePass123!',
+      }
+    }
+  }
+})
+@ApiResponse({ status: 201, description: 'User created successfully', type: UserResponseDto })
+@ApiResponse({ status: 400, description: 'Invalid input data' })
+@ApiResponse({ status: 409, description: 'User already exists' })
+async create(@Body() createUserDto: CreateUserDto): Promise<UserResponseDto> {
+  return this.usersService.create(createUserDto);
+}
+```
+
+## RESTful API Anti-Patterns to Avoid
+
+### URL Anti-Patterns
+- Don't use action-based URLs: `/getUserById` → use `/users/{id}`
+- Don't use verbs in URLs: `/api/v1/createUser` → use `POST /api/v1/users`
+- Don't nest resources too deeply: `/users/{id}/orders/{id}/items/{id}/details`
+- Don't use inconsistent naming: mix of camelCase and snake_case
+
+### HTTP Method Misuse
+- Don't use GET for state-changing operations
+- Don't use POST for everything
+- Don't use PUT for partial updates (use PATCH)
+- Don't ignore HTTP status codes
+
+### Response Anti-Patterns
+- Don't return HTML from REST APIs
+- Don't use inconsistent response formats
+- Don't expose internal implementation details
+- Don't return sensitive data in responses
+- Don't ignore proper error handling
+
+### Controller Anti-Patterns
+- Don't put business logic in controllers
+- Don't skip input validation
+- Don't use synchronous operations for I/O
+- Don't ignore proper exception handling
+- Don't skip API documentation

@@ -1,0 +1,810 @@
+---
+description: USE WHEN working with databases, implementing repositories, optimizing queries, caching, or performance tuning
+globs: ["**/*.entity.ts", "**/*.repository.ts", "**/*.service.ts", "**/*.module.ts"]
+alwaysApply: false
+---
+
+# NestJS Database & Performance Optimization
+
+## Database Design & Operations
+
+### Database Configuration Rules
+- Use appropriate data types and constraints for your database
+- Implement proper relationships and foreign keys
+- Use schema migrations for database changes
+- Implement proper connection pooling
+- Use transactions for data consistency
+
+```typescript
+@Module({
+  imports: [
+    TypeOrmModule.forRootAsync({
+      imports: [ConfigModule],
+      useFactory: (configService: ConfigService) => ({
+        type: 'postgres',
+        host: configService.get('DB_HOST'),
+        port: configService.get('DB_PORT'),
+        username: configService.get('DB_USERNAME'),
+        password: configService.get('DB_PASSWORD'),
+        database: configService.get('DB_NAME'),
+        entities: [__dirname + '/**/*.entity{.ts,.js}'],
+        migrations: [__dirname + '/migrations/*{.ts,.js}'],
+        synchronize: configService.get('NODE_ENV') === 'development',
+        logging: configService.get('NODE_ENV') === 'development',
+        pool: {
+          max: 20,
+          min: 5,
+          acquire: 30000,
+          idle: 10000,
+        },
+      }),
+      inject: [ConfigService],
+    }),
+  ],
+})
+export class DatabaseModule {}
+```
+
+### Backing Services Rules (12-Factor IV)
+- Treat backing services as attached resources
+- Use connection pooling for database services
+- Implement circuit breakers for external services
+- Handle service failures gracefully
+- Use same backing services across environments
+
+```typescript
+@Injectable()
+export class DatabaseService {
+  constructor(
+    @InjectConnection()
+    private connection: Connection,
+  ) {}
+
+  async healthCheck(): Promise<boolean> {
+    try {
+      await this.connection.query('SELECT 1');
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+}
+```
+
+## Performance Optimization
+
+### Database Optimization Rules
+- Use proper indexing strategies for frequently queried fields
+- Implement connection pooling for database connections
+- Optimize queries to avoid N+1 problems
+- Use pagination for large datasets
+- Implement transactions for consistency
+
+```typescript
+@Entity('users')
+@Index(['email'], { unique: true })
+@Index(['createdAt'])
+@Index(['status', 'createdAt'])
+export class User {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  @Column({ unique: true, length: 255 })
+  @Index()
+  email: string;
+
+  @Column({ length: 100 })
+  firstName: string;
+
+  @Column({ select: false }) // Exclude from default selects
+  password: string;
+
+  @Column({
+    type: 'enum',
+    enum: UserStatus,
+    default: UserStatus.ACTIVE,
+  })
+  @Index()
+  status: UserStatus;
+
+  @CreateDateColumn()
+  @Index()
+  createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
+}
+```
+
+### Entity Relationships Optimization
+```typescript
+@Entity('orders')
+@Index(['userId', 'status'])
+@Index(['createdAt'])
+export class Order {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  @Column({ type: 'uuid' })
+  @Index()
+  userId: string;
+
+  @ManyToOne(() => User, user => user.orders, {
+    onDelete: 'CASCADE',
+    eager: false, // Avoid N+1 problems
+  })
+  @JoinColumn({ name: 'userId' })
+  user: User;
+
+  @OneToMany(() => OrderItem, item => item.order, {
+    cascade: true,
+    lazy: true,
+  })
+  items: Promise<OrderItem[]>;
+
+  @Column({
+    type: 'enum',
+    enum: OrderStatus,
+    default: OrderStatus.PENDING,
+  })
+  @Index()
+  status: OrderStatus;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2 })
+  totalAmount: number;
+
+  @CreateDateColumn()
+  @Index()
+  createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
+}
+```
+
+## Repository Pattern Implementation
+
+### Custom Repository with Query Optimization
+```typescript
+@Injectable()
+export class UserRepository {
+  constructor(
+    @InjectRepository(User)
+    private readonly repository: Repository<User>,
+    @Inject(CACHE_MANAGER)
+    private cacheManager: Cache,
+  ) {}
+
+  async findByIdWithCache(id: string): Promise<User | null> {
+    const cacheKey = `user:${id}`;
+    let user = await this.cacheManager.get<User>(cacheKey);
+
+    if (!user) {
+      user = await this.repository.findOne({
+        where: { id },
+        select: ['id', 'email', 'firstName', 'lastName', 'status', 'createdAt'],
+      });
+
+      if (user) {
+        await this.cacheManager.set(cacheKey, user, { ttl: 300 });
+      }
+    }
+    return user;
+  }
+
+  async findWithPagination(page: number, limit: number): Promise<PaginatedResult<User>> {
+    const [items, total] = await this.repository
+      .createQueryBuilder('user')
+      .select(['user.id', 'user.email', 'user.firstName', 'user.lastName'])
+      .skip((page - 1) * limit)
+      .take(limit)
+      .orderBy('user.createdAt', 'DESC')
+      .getManyAndCount();
+
+    return {
+      items,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+      hasNext: page * limit < total,
+      hasPrevious: page > 1,
+    };
+  }
+}
+```
+
+### Cache Service with Advanced Features
+```typescript
+@Injectable()
+export class CacheService {
+  constructor(
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
+    private readonly logger: Logger,
+  ) {}
+
+  async get<T>(key: string): Promise<T | undefined> {
+    try {
+      return await this.cacheManager.get<T>(key);
+    } catch (error) {
+      this.logger.error(`Cache get error for key ${key}:`, error);
+      return undefined;
+    }
+  }
+
+  async set<T>(key: string, value: T, ttl: number = 300): Promise<void> {
+    try {
+      await this.cacheManager.set(key, value, { ttl });
+    } catch (error) {
+      this.logger.error(`Cache set error for key ${key}:`, error);
+    }
+  }
+
+  async getOrSet<T>(key: string, factory: () => Promise<T>, ttl: number = 300): Promise<T> {
+    let value = await this.get<T>(key);
+    if (value === undefined) {
+      value = await factory();
+      await this.set(key, value, ttl);
+    }
+    return value;
+  }
+}
+```
+
+### Cache Interceptor for Automatic Caching
+```typescript
+@Injectable()
+export class CacheInterceptor implements NestInterceptor {
+  constructor(
+    private cacheService: CacheService,
+    private reflector: Reflector,
+  ) {}
+
+  async intercept(context: ExecutionContext, next: CallHandler): Promise<Observable<any>> {
+    const cacheKey = this.getCacheKey(context);
+    const ttl = this.reflector.get<number>('cache_ttl', context.getHandler()) || 300;
+
+    if (!cacheKey) {
+      return next.handle();
+    }
+
+    const cachedResult = await this.cacheService.get(cacheKey);
+    if (cachedResult) {
+      return of(cachedResult);
+    }
+
+    return next.handle().pipe(
+      tap(async (result) => {
+        await this.cacheService.set(cacheKey, result, ttl);
+      }),
+    );
+  }
+
+  private getCacheKey(context: ExecutionContext): string | null {
+    const request = context.switchToHttp().getRequest();
+    
+    // Only cache GET requests
+    if (request.method !== 'GET') {
+      return null;
+    }
+
+    const url = request.url;
+    const userId = request.user?.id || 'anonymous';
+    
+    return `${request.method}:${url}:${userId}`;
+  }
+}
+
+// Usage decorator
+export const CacheTTL = (ttl: number) => SetMetadata('cache_ttl', ttl);
+
+// Usage in controller
+@Get()
+@UseInterceptors(CacheInterceptor)
+@CacheTTL(600) // 10 minutes
+async findAll(): Promise<User[]> {
+  return this.usersService.findAll();
+}
+```
+
+## Query Optimization
+
+### Query Builder Optimization
+```typescript
+@Injectable()
+export class OptimizedQueryService {
+  constructor(
+    @InjectRepository(User)
+    private userRepository: Repository<User>,
+    @InjectRepository(Order)
+    private orderRepository: Repository<Order>,
+  ) {}
+
+  async getUsersWithOrdersOptimized(filters: UserOrderFilters): Promise<UserWithOrders[]> {
+    const queryBuilder = this.userRepository
+      .createQueryBuilder('user')
+      .leftJoinAndSelect('user.orders', 'order', 'order.status = :orderStatus', {
+        orderStatus: OrderStatus.COMPLETED,
+      })
+      .select([
+        'user.id',
+        'user.email',
+        'user.firstName',
+        'user.lastName',
+        'order.id',
+        'order.totalAmount',
+        'order.createdAt',
+      ]);
+
+    // Apply filters with proper indexing
+    if (filters.userStatus) {
+      queryBuilder.andWhere('user.status = :userStatus', {
+        userStatus: filters.userStatus,
+      });
+    }
+
+    if (filters.minOrderAmount) {
+      queryBuilder.andWhere('order.totalAmount >= :minAmount', {
+        minAmount: filters.minOrderAmount,
+      });
+    }
+
+    if (filters.dateRange) {
+      queryBuilder.andWhere('order.createdAt BETWEEN :startDate AND :endDate', {
+        startDate: filters.dateRange.start,
+        endDate: filters.dateRange.end,
+      });
+    }
+
+    // Use proper ordering with indexes
+    queryBuilder.orderBy('user.createdAt', 'DESC');
+    queryBuilder.addOrderBy('order.createdAt', 'DESC');
+
+    return queryBuilder.getMany();
+  }
+
+  async getOrderStatistics(userId: string): Promise<OrderStatistics> {
+    const result = await this.orderRepository
+      .createQueryBuilder('order')
+      .select([
+        'COUNT(order.id) as totalOrders',
+        'SUM(order.totalAmount) as totalSpent',
+        'AVG(order.totalAmount) as avgOrderValue',
+        'MIN(order.createdAt) as firstOrderDate',
+        'MAX(order.createdAt) as lastOrderDate',
+      ])
+      .where('order.userId = :userId', { userId })
+      .andWhere('order.status = :status', { status: OrderStatus.COMPLETED })
+      .getRawOne();
+
+    return {
+      totalOrders: parseInt(result.totalOrders) || 0,
+      totalSpent: parseFloat(result.totalSpent) || 0,
+      avgOrderValue: parseFloat(result.avgOrderValue) || 0,
+      firstOrderDate: result.firstOrderDate,
+      lastOrderDate: result.lastOrderDate,
+    };
+  }
+
+  async bulkInsertOrders(orders: CreateOrderDto[]): Promise<void> {
+    const queryRunner = this.orderRepository.manager.connection.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      // Use batch insert for better performance
+      await queryRunner.manager
+        .createQueryBuilder()
+        .insert()
+        .into(Order)
+        .values(orders)
+        .execute();
+
+      await queryRunner.commitTransaction();
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+}
+```
+
+### Database Indexing Strategy
+```typescript
+// Migration example for optimal indexing
+export class AddOptimalIndexes1234567890 implements MigrationInterface {
+  public async up(queryRunner: QueryRunner): Promise<void> {
+    // Composite index for common query patterns
+    await queryRunner.createIndex(
+      'users',
+      new Index({
+        name: 'IDX_users_status_created_at',
+        columnNames: ['status', 'createdAt'],
+      }),
+    );
+
+    // Partial index for active users only
+    await queryRunner.query(`
+      CREATE INDEX CONCURRENTLY IDX_users_email_active 
+      ON users(email) 
+      WHERE status = 'ACTIVE'
+    `);
+
+    // GIN index for JSONB column
+    await queryRunner.query(`
+      CREATE INDEX CONCURRENTLY IDX_users_preferences_gin 
+      ON users USING GIN(preferences)
+    `);
+
+    // Text search index
+    await queryRunner.query(`
+      CREATE INDEX CONCURRENTLY IDX_users_search_text 
+      ON users USING GIN(
+        to_tsvector('english', 
+          COALESCE(first_name, '') || ' ' || 
+          COALESCE(last_name, '') || ' ' || 
+          COALESCE(email, '')
+        )
+      )
+    `);
+  }
+
+  public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.dropIndex('users', 'IDX_users_status_created_at');
+    await queryRunner.query('DROP INDEX CONCURRENTLY IDX_users_email_active');
+    await queryRunner.query('DROP INDEX CONCURRENTLY IDX_users_preferences_gin');
+    await queryRunner.query('DROP INDEX CONCURRENTLY IDX_users_search_text');
+  }
+}
+```
+
+## Performance Monitoring
+
+### Database Performance Metrics
+```typescript
+@Injectable()
+export class DatabaseMetricsService {
+  constructor(
+    @InjectConnection()
+    private connection: Connection,
+  ) {}
+
+  async getSlowQueries(): Promise<SlowQuery[]> {
+    const result = await this.connection.query(`
+      SELECT 
+        query,
+        calls,
+        total_time,
+        mean_time,
+        rows
+      FROM pg_stat_statements 
+      WHERE mean_time > 100 
+      ORDER BY mean_time DESC 
+      LIMIT 10
+    `);
+
+    return result.map(row => ({
+      query: row.query,
+      calls: parseInt(row.calls),
+      totalTime: parseFloat(row.total_time),
+      meanTime: parseFloat(row.mean_time),
+      rows: parseInt(row.rows),
+    }));
+  }
+
+  async getTableStats(): Promise<TableStats[]> {
+    const result = await this.connection.query(`
+      SELECT 
+        schemaname,
+        tablename,
+        n_tup_ins as inserts,
+        n_tup_upd as updates,
+        n_tup_del as deletes,
+        n_live_tup as live_tuples,
+        n_dead_tup as dead_tuples,
+        last_vacuum,
+        last_autovacuum,
+        last_analyze,
+        last_autoanalyze
+      FROM pg_stat_user_tables
+      ORDER BY n_live_tup DESC
+    `);
+
+    return result;
+  }
+
+  async getIndexUsage(): Promise<IndexUsage[]> {
+    const result = await this.connection.query(`
+      SELECT 
+        schemaname,
+        tablename,
+        indexname,
+        idx_scan as scans,
+        idx_tup_read as tuples_read,
+        idx_tup_fetch as tuples_fetched
+      FROM pg_stat_user_indexes
+      WHERE idx_scan > 0
+      ORDER BY idx_scan DESC
+    `);
+
+    return result;
+  }
+
+  async getConnectionStats(): Promise<ConnectionStats> {
+    const result = await this.connection.query(`
+      SELECT 
+        state,
+        COUNT(*) as count
+      FROM pg_stat_activity 
+      WHERE datname = current_database()
+      GROUP BY state
+    `);
+
+    return result.reduce((acc, row) => {
+      acc[row.state] = parseInt(row.count);
+      return acc;
+    }, {});
+  }
+}
+```
+
+### Performance Interceptor
+```typescript
+@Injectable()
+export class PerformanceInterceptor implements NestInterceptor {
+  private readonly logger = new Logger(PerformanceInterceptor.name);
+
+  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+    const start = Date.now();
+    const request = context.switchToHttp().getRequest();
+    const { method, url } = request;
+
+    return next.handle().pipe(
+      tap(() => {
+        const duration = Date.now() - start;
+        
+        if (duration > 1000) { // Log slow requests
+          this.logger.warn(`Slow request: ${method} ${url} took ${duration}ms`);
+        }
+
+        // Log metrics for performance tracking
+        this.logMetrics(method, url, duration);
+      }),
+      catchError((error) => {
+        const duration = Date.now() - start;
+        this.logger.error(`Failed request: ${method} ${url} took ${duration}ms`, error);
+        throw error;
+      }),
+    );
+  }
+
+  private logMetrics(method: string, url: string, duration: number): void {
+    // Log structured metrics that can be consumed by monitoring systems
+    this.logger.log({
+      type: 'performance_metric',
+      method,
+      url,
+      duration,
+      timestamp: new Date().toISOString(),
+    });
+  }
+}
+```
+
+## Background Processing & Queues
+
+### Bull Queue Implementation
+```typescript
+@Module({
+  imports: [
+    BullModule.forRootAsync({
+      imports: [ConfigModule],
+      useFactory: async (configService: ConfigService) => ({
+        redis: {
+          host: configService.get('REDIS_HOST'),
+          port: configService.get('REDIS_PORT'),
+          password: configService.get('REDIS_PASSWORD'),
+        },
+        defaultJobOptions: {
+          removeOnComplete: 100,
+          removeOnFail: 50,
+          attempts: 3,
+          backoff: {
+            type: 'exponential',
+            delay: 2000,
+          },
+        },
+      }),
+      inject: [ConfigService],
+    }),
+    BullModule.registerQueue({
+      name: 'email',
+    }),
+    BullModule.registerQueue({
+      name: 'data-processing',
+    }),
+  ],
+})
+export class QueueModule {}
+```
+
+### Queue Processor for Background Tasks
+```typescript
+@Processor('data-processing')
+export class DataProcessingProcessor {
+  private readonly logger = new Logger(DataProcessingProcessor.name);
+
+  constructor(
+    private userRepository: UserRepository,
+    private cacheService: CacheService,
+  ) {}
+
+  @Process('user-statistics')
+  async processUserStatistics(job: Job<{ userId: string }>) {
+    const { userId } = job.data;
+    
+    try {
+      // Simulate heavy computation
+      const statistics = await this.calculateUserStatistics(userId);
+      
+      // Cache the results
+      await this.cacheService.set(
+        `user-stats:${userId}`,
+        statistics,
+        3600, // 1 hour
+      );
+
+      this.logger.log(`Processed statistics for user ${userId}`);
+      return statistics;
+    } catch (error) {
+      this.logger.error(`Failed to process statistics for user ${userId}:`, error);
+      throw error;
+    }
+  }
+
+  @Process('bulk-update')
+  async processBulkUpdate(job: Job<{ updates: Array<{ id: string; data: any }> }>) {
+    const { updates } = job.data;
+    
+    try {
+      await this.userRepository.bulkUpdate(updates);
+      
+      // Invalidate affected caches
+      await Promise.all(
+        updates.map(update => 
+          this.cacheService.invalidatePattern(`user:${update.id}*`)
+        )
+      );
+
+      this.logger.log(`Processed bulk update for ${updates.length} users`);
+    } catch (error) {
+      this.logger.error('Failed to process bulk update:', error);
+      throw error;
+    }
+  }
+
+  private async calculateUserStatistics(userId: string): Promise<UserStatistics> {
+    // Heavy computation logic here
+    return {
+      totalOrders: 0,
+      totalSpent: 0,
+      avgOrderValue: 0,
+      lastOrderDate: new Date(),
+    };
+  }
+}
+```
+
+## Database Migration Best Practices
+
+### Migration Template
+```typescript
+export class OptimizedMigration1234567890 implements MigrationInterface {
+  name = 'OptimizedMigration1234567890';
+
+  public async up(queryRunner: QueryRunner): Promise<void> {
+    // Create table with optimal structure
+    await queryRunner.createTable(
+      new Table({
+        name: 'user_activities',
+        columns: [
+          {
+            name: 'id',
+            type: 'uuid',
+            isPrimary: true,
+            generationStrategy: 'uuid',
+            default: 'uuid_generate_v4()',
+          },
+          {
+            name: 'user_id',
+            type: 'uuid',
+            isNullable: false,
+          },
+          {
+            name: 'activity_type',
+            type: 'varchar',
+            length: '50',
+            isNullable: false,
+          },
+          {
+            name: 'metadata',
+            type: 'jsonb',
+            isNullable: true,
+          },
+          {
+            name: 'created_at',
+            type: 'timestamp',
+            default: 'CURRENT_TIMESTAMP',
+          },
+        ],
+        indices: [
+          {
+            name: 'IDX_user_activities_user_id',
+            columnNames: ['user_id'],
+          },
+          {
+            name: 'IDX_user_activities_type_created',
+            columnNames: ['activity_type', 'created_at'],
+          },
+        ],
+        foreignKeys: [
+          {
+            columnNames: ['user_id'],
+            referencedTableName: 'users',
+            referencedColumnNames: ['id'],
+            onDelete: 'CASCADE',
+          },
+        ],
+      }),
+    );
+
+    // Create indexes concurrently for existing tables
+    await queryRunner.query(`
+      CREATE INDEX CONCURRENTLY IDX_users_email_lower 
+      ON users(LOWER(email))
+    `);
+  }
+
+  public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.dropTable('user_activities');
+    await queryRunner.query('DROP INDEX CONCURRENTLY IDX_users_email_lower');
+  }
+}
+```
+
+## Performance Anti-Patterns to Avoid
+
+### Database Anti-Patterns
+- Don't use SELECT * in production queries
+- Don't ignore database indexes for frequently queried columns
+- Don't use synchronous operations for database calls
+- Don't skip connection pooling configuration
+- Don't ignore query optimization and EXPLAIN ANALYZE
+- Don't use ORM without understanding generated SQL
+- Don't skip database migrations for schema changes
+
+### Caching Anti-Patterns
+- Don't cache everything without considering TTL
+- Don't ignore cache invalidation strategies
+- Don't use cache as primary data store
+- Don't skip cache error handling
+- Don't ignore cache memory limits
+- Don't use overly complex cache keys
+
+### Query Anti-Patterns
+- Don't use N+1 queries - use proper joins or eager loading
+- Don't ignore pagination for large datasets
+- Don't use LIKE queries without proper indexes
+- Don't skip query result limiting
+- Don't ignore database-specific optimizations
+- Don't use inefficient sorting without indexes
+
+### Performance Anti-Patterns
+- Don't ignore database monitoring and metrics
+- Don't skip performance testing
+- Don't ignore slow query logs
+- Don't use blocking operations in request handlers
+- Don't skip proper error handling in async operations
+- Don't ignore memory usage and garbage collection

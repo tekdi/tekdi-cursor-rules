@@ -1,0 +1,810 @@
+---
+description: USE WHEN implementing authentication, authorization, security guards, input validation, or handling security concerns
+globs: ["**/*.guard.ts", "**/*.strategy.ts", "**/*.dto.ts", "**/*.service.ts"]
+alwaysApply: false
+---
+
+# NestJS Security & Authentication
+
+## Authentication & Authorization
+
+### Token-Based Authentication Rules
+- Implement JWT-based authentication with proper validation
+- Use secure token storage and transmission
+- Implement proper token validation and refresh mechanisms
+- Handle token expiration and renewal gracefully
+- Log authentication events for security monitoring
+
+```typescript
+@Injectable()
+export class JwtStrategy extends PassportStrategy(Strategy) {
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly usersService: UsersService,
+  ) {
+    super({
+      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      ignoreExpiration: false,
+      secretOrKey: configService.get<string>('JWT_SECRET'),
+    });
+  }
+
+  async validate(payload: JwtPayload): Promise<User> {
+    const user = await this.usersService.findById(payload.sub);
+    if (!user || !user.isActive) {
+      throw new UnauthorizedException('User not found or inactive');
+    }
+    return user;
+  }
+}
+```
+
+### Authentication Service Rules
+- Implement secure user validation with proper password hashing
+- Use secure token generation and validation
+- Implement proper session management
+- Log authentication events with appropriate context
+- Handle authentication failures gracefully
+
+```typescript
+@Injectable()
+export class AuthService {
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly jwtService: JwtService,
+    private readonly logger: Logger,
+  ) {}
+
+  async login(loginDto: LoginDto): Promise<AuthResponseDto> {
+    const user = await this.validateUser(loginDto.email, loginDto.password);
+    
+    const payload: JwtPayload = { sub: user.id, email: user.email, roles: user.roles };
+    const accessToken = this.jwtService.sign(payload);
+    
+    this.logger.log(`User ${user.email} logged in successfully`);
+    return { accessToken, user: this.transformUserResponse(user) };
+  }
+
+  async validateUser(email: string, password: string): Promise<User> {
+    const user = await this.usersService.findByEmail(email);
+    if (!user || !await bcrypt.compare(password, user.password)) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+    return user;
+  }
+}
+```
+
+### Role-Based Access Control Rules
+- Implement role-based access control (RBAC) for authorization
+- Use attribute-based authorization for complex scenarios
+- Implement proper permission checking at endpoint level
+- Cache authorization decisions when appropriate
+- Log authorization failures with relevant context
+
+```typescript
+@Injectable()
+export class JwtAuthGuard extends AuthGuard('jwt') {
+  constructor(private reflector: Reflector) {
+    super();
+  }
+
+  canActivate(context: ExecutionContext): boolean | Promise<boolean> {
+    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+
+    if (isPublic) {
+      return true;
+    }
+
+    return super.canActivate(context);
+  }
+
+  handleRequest(err: any, user: any, info: any, context: ExecutionContext) {
+    if (err || !user) {
+      const request = context.switchToHttp().getRequest();
+      this.logger.warn(`Unauthorized access attempt: ${request.url}`);
+      throw err || new UnauthorizedException('Invalid or expired token');
+    }
+    return user;
+  }
+}
+```
+
+### Role-Based Access Control (RBAC)
+```typescript
+@Injectable()
+export class RolesGuard implements CanActivate {
+  constructor(private reflector: Reflector) {}
+
+  canActivate(context: ExecutionContext): boolean {
+    const requiredRoles = this.reflector.getAllAndOverride<Role[]>(ROLES_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+
+    if (!requiredRoles) {
+      return true;
+    }
+
+    const { user } = context.switchToHttp().getRequest();
+    const hasRole = requiredRoles.some((role) => user.roles?.includes(role));
+
+    if (!hasRole) {
+      const request = context.switchToHttp().getRequest();
+      this.logger.warn(
+        `Access denied for user ${user.id} to ${request.url}. Required roles: ${requiredRoles.join(', ')}`,
+      );
+    }
+
+    return hasRole;
+  }
+}
+```
+
+### Permission-Based Authorization
+```typescript
+@Injectable()
+export class PermissionsGuard implements CanActivate {
+  constructor(
+    private reflector: Reflector,
+    private permissionsService: PermissionsService,
+  ) {}
+
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const requiredPermissions = this.reflector.getAllAndOverride<string[]>(
+      PERMISSIONS_KEY,
+      [context.getHandler(), context.getClass()],
+    );
+
+    if (!requiredPermissions) {
+      return true;
+    }
+
+    const { user } = context.switchToHttp().getRequest();
+    const userPermissions = await this.permissionsService.getUserPermissions(user.id);
+
+    return requiredPermissions.every((permission) =>
+      userPermissions.includes(permission),
+    );
+  }
+}
+```
+
+### Input Validation & Sanitization Rules
+- Use comprehensive validation with class-validator
+- Transform and sanitize input data
+- Implement custom validation decorators where needed
+- Provide clear validation error messages
+
+```typescript
+export class CreateUserDto {
+  @ApiProperty({ description: 'User email address', example: 'user@example.com' })
+  @IsEmail({}, { message: 'Please provide a valid email address' })
+  @Transform(({ value }) => value.toLowerCase().trim())
+  email: string;
+
+  @ApiProperty({ description: 'User password', minLength: 8 })
+  @IsString()
+  @MinLength(8, { message: 'Password must be at least 8 characters long' })
+  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/, {
+    message: 'Password must contain uppercase, lowercase, number and special character'
+  })
+  password: string;
+
+  @ApiProperty({ description: 'User first name', example: 'John' })
+  @IsString()
+  @Length(2, 50, { message: 'First name must be between 2 and 50 characters' })
+  @Transform(({ value }) => value.trim())
+  firstName: string;
+}
+```
+
+### Security Configuration & Rate Limiting
+```typescript
+// main.ts security setup
+import { NestFactory } from '@nestjs/core';
+import { ValidationPipe } from '@nestjs/common';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
+import { ThrottlerGuard } from '@nestjs/throttler';
+
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule);
+
+  // Security headers
+  app.use(helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        scriptSrc: ["'self'"],
+        imgSrc: ["'self'", "data:", "https:"],
+      },
+    },
+  }));
+
+  // Rate limiting
+  app.use(
+    rateLimit({
+      windowMs: 15 * 60 * 1000, // 15 minutes
+      max: 100, // limit each IP to 100 requests per windowMs
+      message: {
+        statusCode: 429,
+        error: 'Too Many Requests',
+        message: 'Too many requests from this IP, please try again later.',
+      },
+      standardHeaders: true,
+      legacyHeaders: false,
+    }),
+  );
+
+  // Global validation pipe with security settings
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true, // Strip properties that don't have decorators
+      forbidNonWhitelisted: true, // Throw error if non-whitelisted properties are present
+      transform: true, // Automatically transform payloads to DTO instances
+      disableErrorMessages: process.env.NODE_ENV === 'production', // Disable detailed error messages in production
+      validateCustomDecorators: true, // Enable custom decorator validation
+    }),
+  );
+
+  // CORS configuration
+  app.enableCors({
+    origin: process.env.CORS_ORIGIN?.split(',') || ['http://localhost:3000'],
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  });
+
+  await app.listen(3000);
+}
+
+// Throttler configuration
+@Module({
+  imports: [
+    ThrottlerModule.forRoot({
+      ttl: 60, // 1 minute
+      limit: 10, // 10 requests per minute
+    }),
+  ],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+  ],
+})
+export class AppModule {}
+```
+
+### Advanced Validation Rules
+- Use comprehensive validation with proper error messages
+- Implement custom validation decorators for complex scenarios
+- Transform and sanitize input data appropriately
+- Provide field-level validation feedback
+
+```typescript
+export class CreateUserDto {
+  @ApiProperty({ description: 'User email address', example: 'user@example.com' })
+  @IsEmail({}, { message: 'Please provide a valid email address' })
+  @Transform(({ value }) => value.toLowerCase().trim())
+  @IsNotEmpty({ message: 'Email is required' })
+  email: string;
+
+  @ApiProperty({ description: 'User password', minLength: 8 })
+  @IsString({ message: 'Password must be a string' })
+  @MinLength(8, { message: 'Password must be at least 8 characters long' })
+  @MaxLength(128, { message: 'Password must not exceed 128 characters' })
+  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/, {
+    message: 'Password must contain uppercase, lowercase, number and special character'
+  })
+  password: string;
+
+  @ApiProperty({ description: 'User first name', minLength: 2, maxLength: 50 })
+  @IsString({ message: 'First name must be a string' })
+  @Length(2, 50, { message: 'First name must be between 2 and 50 characters' })
+  @Transform(({ value }) => value.trim())
+  @Matches(/^[a-zA-Z\s'-]+$/, { message: 'First name can only contain letters, spaces, apostrophes, and hyphens' })
+  firstName: string;
+
+  @ApiProperty({ description: 'User last name', minLength: 2, maxLength: 50 })
+  @IsString({ message: 'Last name must be a string' })
+  @Length(2, 50, { message: 'Last name must be between 2 and 50 characters' })
+  @Transform(({ value }) => value.trim())
+  @Matches(/^[a-zA-Z\s'-]+$/, { message: 'Last name can only contain letters, spaces, apostrophes, and hyphens' })
+  lastName: string;
+
+  @ApiProperty({ description: 'User phone number', required: false })
+  @IsOptional()
+  @IsPhoneNumber(null, { message: 'Please provide a valid phone number' })
+  @Transform(({ value }) => value?.replace(/\D/g, ''))
+  phoneNumber?: string;
+
+  @ApiProperty({ description: 'User date of birth', required: false })
+  @IsOptional()
+  @IsDateString({}, { message: 'Please provide a valid date' })
+  @Transform(({ value }) => value ? new Date(value) : undefined)
+  dateOfBirth?: Date;
+
+  @ApiProperty({ description: 'User role', enum: UserRole, default: UserRole.USER })
+  @IsOptional()
+  @IsEnum(UserRole, { message: 'Role must be a valid user role' })
+  role?: UserRole = UserRole.USER;
+}
+```
+
+### Custom Validation Decorators
+```typescript
+// Custom email domain validator
+export function IsEmailDomain(domain: string, validationOptions?: ValidationOptions) {
+  return function (object: Object, propertyName: string) {
+    registerDecorator({
+      name: 'isEmailDomain',
+      target: object.constructor,
+      propertyName: propertyName,
+      constraints: [domain],
+      options: validationOptions,
+      validator: {
+        validate(value: any, args: ValidationArguments) {
+          const [allowedDomain] = args.constraints;
+          return typeof value === 'string' && value.endsWith(`@${allowedDomain}`);
+        },
+        defaultMessage(args: ValidationArguments) {
+          const [allowedDomain] = args.constraints;
+          return `Email must be from ${allowedDomain} domain`;
+        },
+      },
+    });
+  };
+}
+
+// Custom password strength validator
+export function IsStrongPassword(validationOptions?: ValidationOptions) {
+  return function (object: Object, propertyName: string) {
+    registerDecorator({
+      name: 'isStrongPassword',
+      target: object.constructor,
+      propertyName: propertyName,
+      options: validationOptions,
+      validator: {
+        validate(value: any) {
+          const strongPasswordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+          return typeof value === 'string' && strongPasswordRegex.test(value);
+        },
+        defaultMessage() {
+          return 'Password must contain at least 8 characters, including uppercase, lowercase, number, and special character';
+        },
+      },
+    });
+  };
+}
+```
+
+### Global Validation Pipe Configuration
+```typescript
+// main.ts
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule);
+
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true, // Strip unknown properties
+      forbidNonWhitelisted: true, // Throw error for unknown properties
+      transform: true, // Transform payloads to DTO instances
+      transformOptions: {
+        enableImplicitConversion: true,
+      },
+      disableErrorMessages: process.env.NODE_ENV === 'production',
+      validationError: {
+        target: false,
+        value: false,
+      },
+    }),
+  );
+
+  await app.listen(3000);
+}
+```
+
+## Security Configuration
+
+### Security Headers Middleware
+```typescript
+@Injectable()
+export class SecurityHeadersMiddleware implements NestMiddleware {
+  use(req: Request, res: Response, next: NextFunction) {
+    // Security headers
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('X-XSS-Protection', '1; mode=block');
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+    
+    // Remove server information
+    res.removeHeader('X-Powered-By');
+    
+    next();
+  }
+}
+```
+
+### Rate Limiting Configuration
+```typescript
+@Module({
+  imports: [
+    ThrottlerModule.forRoot({
+      ttl: 60, // Time to live in seconds
+      limit: 100, // Maximum number of requests within TTL
+    }),
+  ],
+})
+export class AppModule {}
+
+// Custom rate limiting for specific endpoints
+@Controller('auth')
+export class AuthController {
+  @Post('login')
+  @Throttle(5, 60) // 5 requests per minute for login
+  async login(@Body() loginDto: LoginDto) {
+    return this.authService.login(loginDto);
+  }
+
+  @Post('register')
+  @Throttle(3, 300) // 3 requests per 5 minutes for registration
+  async register(@Body() registerDto: RegisterDto) {
+    return this.authService.register(registerDto);
+  }
+}
+```
+
+### CORS Configuration
+```typescript
+// main.ts
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule);
+
+  app.enableCors({
+    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    credentials: true,
+    maxAge: 86400, // 24 hours
+  });
+
+  await app.listen(3000);
+}
+```
+
+## Custom Decorators for Security
+
+### Authentication Decorators
+```typescript
+// Public route decorator
+export const IS_PUBLIC_KEY = 'isPublic';
+export const Public = () => SetMetadata(IS_PUBLIC_KEY, true);
+
+// Roles decorator
+export const ROLES_KEY = 'roles';
+export const Roles = (...roles: Role[]) => SetMetadata(ROLES_KEY, roles);
+
+// Permissions decorator
+export const PERMISSIONS_KEY = 'permissions';
+export const Permissions = (...permissions: string[]) => 
+  SetMetadata(PERMISSIONS_KEY, permissions);
+
+// Current user decorator
+export const CurrentUser = createParamDecorator(
+  (data: keyof User | undefined, ctx: ExecutionContext): User | any => {
+    const request = ctx.switchToHttp().getRequest();
+    const user = request.user;
+    
+    return data ? user?.[data] : user;
+  },
+);
+
+// IP address decorator
+export const GetIpAddress = createParamDecorator(
+  (data: unknown, ctx: ExecutionContext): string => {
+    const request = ctx.switchToHttp().getRequest();
+    return request.ip || request.connection.remoteAddress || 'unknown';
+  },
+);
+```
+
+### Usage Examples
+```typescript
+@Controller('users')
+export class UsersController {
+  @Get('profile')
+  @UseGuards(JwtAuthGuard)
+  async getProfile(@CurrentUser() user: User): Promise<UserResponseDto> {
+    return this.usersService.getProfile(user.id);
+  }
+
+  @Post()
+  @Public()
+  async createUser(@Body() createUserDto: CreateUserDto): Promise<UserResponseDto> {
+    return this.usersService.create(createUserDto);
+  }
+
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  async deleteUser(@Param('id') id: string): Promise<void> {
+    return this.usersService.delete(id);
+  }
+
+  @Get('admin')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('users:read', 'admin:access')
+  async getAdminData(): Promise<any> {
+    return this.usersService.getAdminData();
+  }
+}
+```
+
+## Password Security
+
+### Password Hashing Service
+```typescript
+@Injectable()
+export class PasswordService {
+  private readonly saltRounds = 12;
+
+  async hashPassword(password: string): Promise<string> {
+    return bcrypt.hash(password, this.saltRounds);
+  }
+
+  async comparePassword(password: string, hash: string): Promise<boolean> {
+    return bcrypt.compare(password, hash);
+  }
+
+  generateSecurePassword(length: number = 16): string {
+    const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';
+    let password = '';
+    
+    for (let i = 0; i < length; i++) {
+      const randomIndex = crypto.randomInt(0, charset.length);
+      password += charset[randomIndex];
+    }
+    
+    return password;
+  }
+
+  validatePasswordStrength(password: string): {
+    isValid: boolean;
+    score: number;
+    feedback: string[];
+  } {
+    const feedback: string[] = [];
+    let score = 0;
+
+    if (password.length >= 8) score += 1;
+    else feedback.push('Password should be at least 8 characters long');
+
+    if (/[a-z]/.test(password)) score += 1;
+    else feedback.push('Password should contain lowercase letters');
+
+    if (/[A-Z]/.test(password)) score += 1;
+    else feedback.push('Password should contain uppercase letters');
+
+    if (/\d/.test(password)) score += 1;
+    else feedback.push('Password should contain numbers');
+
+    if (/[@$!%*?&]/.test(password)) score += 1;
+    else feedback.push('Password should contain special characters');
+
+    return {
+      isValid: score >= 4,
+      score,
+      feedback,
+    };
+  }
+}
+```
+
+## Session Management
+
+### Session-Based Authentication (Alternative to JWT)
+```typescript
+@Injectable()
+export class SessionService {
+  constructor(
+    @InjectRepository(Session)
+    private sessionRepository: Repository<Session>,
+  ) {}
+
+  async createSession(userId: string, ipAddress: string, userAgent: string): Promise<string> {
+    const sessionId = crypto.randomUUID();
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+    const session = this.sessionRepository.create({
+      id: sessionId,
+      userId,
+      ipAddress,
+      userAgent,
+      expiresAt,
+    });
+
+    await this.sessionRepository.save(session);
+    return sessionId;
+  }
+
+  async validateSession(sessionId: string): Promise<Session | null> {
+    const session = await this.sessionRepository.findOne({
+      where: { id: sessionId },
+      relations: ['user'],
+    });
+
+    if (!session || session.expiresAt < new Date()) {
+      if (session) {
+        await this.sessionRepository.remove(session);
+      }
+      return null;
+    }
+
+    return session;
+  }
+
+  async invalidateSession(sessionId: string): Promise<void> {
+    await this.sessionRepository.delete({ id: sessionId });
+  }
+
+  async invalidateAllUserSessions(userId: string): Promise<void> {
+    await this.sessionRepository.delete({ userId });
+  }
+}
+```
+
+## Security Event Logging
+
+### Security Event Logging Service
+```typescript
+@Injectable()
+export class SecurityLogger {
+  private readonly logger = new Logger(SecurityLogger.name);
+
+  logAuthenticationAttempt(email: string, success: boolean, ipAddress: string) {
+    const event = {
+      type: 'AUTHENTICATION_ATTEMPT',
+      email,
+      success,
+      ipAddress,
+      timestamp: new Date().toISOString(),
+    };
+
+    if (success) {
+      this.logger.log(`Successful login: ${email} from ${ipAddress}`);
+    } else {
+      this.logger.warn(`Failed login attempt: ${email} from ${ipAddress}`);
+    }
+  }
+
+  logAuthorizationFailure(userId: string, resource: string, action: string, ipAddress: string) {
+    const event = {
+      type: 'AUTHORIZATION_FAILURE',
+      userId,
+      resource,
+      action,
+      ipAddress,
+      timestamp: new Date().toISOString(),
+    };
+
+    this.logger.warn(`Authorization denied: User ${userId} attempted ${action} on ${resource} from ${ipAddress}`);
+  }
+
+  logSuspiciousActivity(userId: string, activity: string, details: any) {
+    const event = {
+      type: 'SUSPICIOUS_ACTIVITY',
+      userId,
+      activity,
+      details,
+      timestamp: new Date().toISOString(),
+    };
+
+    this.logger.error(`Suspicious activity detected: ${activity} by user ${userId}`, details);
+  }
+
+  logPasswordChange(userId: string, ipAddress: string) {
+    const event = {
+      type: 'PASSWORD_CHANGE',
+      userId,
+      ipAddress,
+      timestamp: new Date().toISOString(),
+    };
+
+    this.logger.log(`Password changed for user ${userId} from ${ipAddress}`);
+  }
+}
+```
+
+## Data Protection & Privacy
+
+### Data Sanitization Service
+```typescript
+@Injectable()
+export class DataSanitizationService {
+  sanitizeUserData(user: User): UserResponseDto {
+    const { password, refreshToken, ...sanitizedUser } = user;
+    return sanitizedUser;
+  }
+
+  sanitizeErrorMessage(error: any): string {
+    // Remove sensitive information from error messages
+    const sensitivePatterns = [
+      /password/gi,
+      /token/gi,
+      /secret/gi,
+      /key/gi,
+      /credential/gi,
+    ];
+
+    let message = error.message || 'An error occurred';
+    
+    sensitivePatterns.forEach(pattern => {
+      message = message.replace(pattern, '[REDACTED]');
+    });
+
+    return message;
+  }
+
+  maskSensitiveData(data: any): any {
+    if (typeof data !== 'object' || data === null) {
+      return data;
+    }
+
+    const masked = { ...data };
+    const sensitiveFields = ['password', 'token', 'secret', 'key', 'ssn', 'creditCard'];
+
+    sensitiveFields.forEach(field => {
+      if (masked[field]) {
+        masked[field] = '[MASKED]';
+      }
+    });
+
+    return masked;
+  }
+}
+```
+
+## Security Anti-Patterns to Avoid
+
+### Authentication Anti-Patterns
+- Don't store passwords in plain text
+- Don't use weak hashing algorithms (MD5, SHA1)
+- Don't implement custom authentication without proper security review
+- Don't ignore token expiration
+- Don't use predictable session IDs
+- Don't transmit credentials in URLs
+- Don't implement authentication logic in controllers
+
+### Authorization Anti-Patterns
+- Don't rely solely on client-side authorization
+- Don't use role names in URLs or client-side code
+- Don't skip authorization checks for "internal" endpoints
+- Don't implement authorization logic in controllers
+- Don't use hardcoded permissions
+- Don't ignore resource-level permissions
+
+### Input Validation Anti-Patterns
+- Don't trust client-side validation
+- Don't skip server-side validation
+- Don't use blacklist-based validation
+- Don't ignore file upload validation
+- Don't trust HTTP headers without validation
+- Don't skip SQL injection prevention
+- Don't ignore XSS prevention
+
+### General Security Anti-Patterns
+- Don't expose sensitive information in error messages
+- Don't log sensitive data
+- Don't ignore security headers
+- Don't use HTTP in production
+- Don't ignore rate limiting
+- Don't skip security testing
+- Don't ignore security updates
