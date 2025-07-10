@@ -1,0 +1,1080 @@
+---
+description: USE WHEN creating API documentation, implementing Swagger, documenting code, or writing README files
+globs: ["**/*.controller.ts", "**/*.dto.ts", "**/*.service.ts", "**/*.md"]
+alwaysApply: false
+---
+
+# NestJS Documentation Standards
+
+## API Documentation
+
+### Documentation Strategy Rules
+- Use Swagger/OpenAPI for comprehensive API documentation
+- Document all endpoints with proper descriptions and examples
+- Include authentication and authorization requirements
+- Provide clear error response documentation
+- Keep documentation up-to-date with code changes
+
+### Swagger Configuration Rules
+- Configure Swagger with proper metadata and authentication
+- Use tags to organize endpoints logically
+- Include request/response examples
+- Document all query parameters and path parameters
+- Set up proper authentication schemes
+
+```typescript
+// main.ts
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule);
+
+  const config = new DocumentBuilder()
+    .setTitle('NestJS API')
+    .setDescription('The NestJS API description')
+    .setVersion('1.0')
+    .addTag('users', 'User management endpoints')
+    .addTag('auth', 'Authentication endpoints')
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        name: 'JWT',
+        description: 'Enter JWT token',
+        in: 'header',
+      },
+      'JWT-auth',
+    )
+    .build();
+
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api', app, document, {
+    customSiteTitle: 'NestJS API Docs',
+    customfavIcon: 'https://nestjs.com/img/logo-small.svg',
+    customJs: [
+      'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui-bundle.min.js',
+      'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui-standalone-preset.min.js',
+    ],
+    customCssUrl: [
+      'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui.min.css',
+    ],
+  });
+
+  await app.listen(3000);
+}
+bootstrap();
+```
+
+### API Endpoint Documentation Rules
+- Use descriptive operation summaries and descriptions
+- Document all possible response codes and their meanings
+- Include example request and response bodies
+- Document authentication requirements
+- Use proper HTTP status codes
+
+```typescript
+@Controller('api/v1/users')
+@ApiTags('users')
+@ApiBearerAuth('JWT-auth')
+export class UsersController {
+  constructor(private readonly usersService: UsersService) {}
+
+  @Get()
+  @ApiOperation({ 
+    summary: 'Get all users',
+    description: 'Retrieve a paginated list of users with optional search filtering'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Successfully retrieved users',
+    type: PaginatedUserResponse,
+    example: {
+      items: [
+        {
+          id: 'uuid',
+          email: 'user@example.com',
+          firstName: 'John',
+          lastName: 'Doe',
+          createdAt: '2023-01-01T00:00:00.000Z'
+        }
+      ],
+      pagination: {
+        page: 1,
+        limit: 10,
+        total: 100,
+        totalPages: 10,
+        hasNext: true,
+        hasPrevious: false
+      }
+    }
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number' })
+  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page' })
+  @ApiQuery({ name: 'search', required: false, type: String, description: 'Search term' })
+  async findAll(
+    @Query() paginationDto: PaginationDto,
+    @Query('search') search?: string,
+  ): Promise<PaginatedResponse<UserResponseDto>> {
+    return this.usersService.findAll(paginationDto, search);
+  }
+
+  @Post()
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ 
+    summary: 'Create a new user',
+    description: 'Create a new user account with email and password'
+  })
+  @ApiResponse({ 
+    status: 201, 
+    description: 'User created successfully',
+    type: UserResponseDto 
+  })
+  @ApiResponse({ status: 400, description: 'Bad request - validation failed' })
+  @ApiResponse({ status: 409, description: 'Conflict - email already exists' })
+  async create(@Body() createUserDto: CreateUserDto): Promise<UserResponseDto> {
+    return this.usersService.create(createUserDto);
+  }
+}
+```
+
+### DTO Documentation
+```typescript
+export class CreateUserDto {
+  @ApiProperty({
+    description: 'User email address (must be unique)',
+    example: 'john.doe@example.com',
+    format: 'email',
+    maxLength: 255,
+  })
+  @IsEmail({}, { message: 'Please provide a valid email address' })
+  @Transform(({ value }) => value.toLowerCase().trim())
+  email: string;
+
+  @ApiProperty({
+    description: 'User first name',
+    example: 'John',
+    minLength: 2,
+    maxLength: 50,
+  })
+  @IsString()
+  @Length(2, 50, { message: 'First name must be between 2 and 50 characters' })
+  @Transform(({ value }) => value.trim())
+  firstName: string;
+
+  @ApiProperty({
+    description: 'User last name',
+    example: 'Doe',
+    minLength: 2,
+    maxLength: 50,
+  })
+  @IsString()
+  @Length(2, 50, { message: 'Last name must be between 2 and 50 characters' })
+  @Transform(({ value }) => value.trim())
+  lastName: string;
+
+  @ApiProperty({
+    description: 'User password (must contain uppercase, lowercase, number, and special character)',
+    example: 'SecurePassword123!',
+    minLength: 8,
+    maxLength: 128,
+    format: 'password',
+  })
+  @IsString()
+  @MinLength(8, { message: 'Password must be at least 8 characters long' })
+  @MaxLength(128, { message: 'Password must not exceed 128 characters' })
+  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/, {
+    message: 'Password must contain uppercase, lowercase, number and special character',
+  })
+  password: string;
+
+  @ApiProperty({
+    description: 'User role in the system',
+    enum: UserRole,
+    default: UserRole.USER,
+    example: UserRole.USER,
+  })
+  @IsOptional()
+  @IsEnum(UserRole, { message: 'Role must be a valid user role' })
+  role?: UserRole = UserRole.USER;
+
+  @ApiProperty({
+    description: 'User phone number (optional)',
+    example: '+1234567890',
+    required: false,
+  })
+  @IsOptional()
+  @IsPhoneNumber(null, { message: 'Please provide a valid phone number' })
+  phoneNumber?: string;
+
+  @ApiProperty({
+    description: 'User date of birth (optional)',
+    example: '1990-01-01',
+    format: 'date',
+    required: false,
+  })
+  @IsOptional()
+  @IsDateString({}, { message: 'Please provide a valid date' })
+  dateOfBirth?: string;
+}
+
+export class UserResponseDto {
+  @ApiProperty({
+    description: 'User unique identifier',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+    format: 'uuid',
+  })
+  id: string;
+
+  @ApiProperty({
+    description: 'User email address',
+    example: 'john.doe@example.com',
+    format: 'email',
+  })
+  email: string;
+
+  @ApiProperty({
+    description: 'User first name',
+    example: 'John',
+  })
+  firstName: string;
+
+  @ApiProperty({
+    description: 'User last name',
+    example: 'Doe',
+  })
+  lastName: string;
+
+  @ApiProperty({
+    description: 'User full name (computed)',
+    example: 'John Doe',
+  })
+  fullName: string;
+
+  @ApiProperty({
+    description: 'User role in the system',
+    enum: UserRole,
+    example: UserRole.USER,
+  })
+  role: UserRole;
+
+  @ApiProperty({
+    description: 'User account status',
+    enum: UserStatus,
+    example: UserStatus.ACTIVE,
+  })
+  status: UserStatus;
+
+  @ApiProperty({
+    description: 'User phone number',
+    example: '+1234567890',
+    required: false,
+  })
+  phoneNumber?: string;
+
+  @ApiProperty({
+    description: 'User date of birth',
+    example: '1990-01-01',
+    format: 'date',
+    required: false,
+  })
+  dateOfBirth?: string;
+
+  @ApiProperty({
+    description: 'Account creation timestamp',
+    example: '2023-01-01T00:00:00.000Z',
+    format: 'date-time',
+  })
+  createdAt: Date;
+
+  @ApiProperty({
+    description: 'Account last update timestamp',
+    example: '2023-01-01T00:00:00.000Z',
+    format: 'date-time',
+  })
+  updatedAt: Date;
+}
+
+export class PaginatedResponse<T> {
+  @ApiProperty({
+    description: 'Array of items for the current page',
+    type: 'array',
+    items: {},
+  })
+  items: T[];
+
+  @ApiProperty({
+    description: 'Pagination metadata',
+    type: 'object',
+    properties: {
+      page: { type: 'number', description: 'Current page number', example: 1 },
+      limit: { type: 'number', description: 'Items per page', example: 10 },
+      total: { type: 'number', description: 'Total number of items', example: 100 },
+      totalPages: { type: 'number', description: 'Total number of pages', example: 10 },
+      hasNext: { type: 'boolean', description: 'Whether there is a next page', example: true },
+      hasPrevious: { type: 'boolean', description: 'Whether there is a previous page', example: false },
+    },
+  })
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrevious: boolean;
+  };
+}
+```
+
+### Entity Documentation
+```typescript
+/**
+ * User entity representing a user account in the system
+ * 
+ * @entity users
+ * @description Stores user account information including authentication credentials,
+ * personal details, and account status. Supports role-based access control.
+ * 
+ * @example
+ * ```typescript
+ * const user = new User();
+ * user.email = 'john.doe@example.com';
+ * user.firstName = 'John';
+ * user.lastName = 'Doe';
+ * user.password = await bcrypt.hash('password', 10);
+ * ```
+ */
+@Entity('users')
+@Index(['email'], { unique: true })
+@Index(['status', 'createdAt'])
+@ApiExtraModels()
+export class User {
+  /**
+   * User unique identifier
+   * @description UUID v4 generated automatically on creation
+   */
+  @ApiProperty({
+    description: 'User unique identifier',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+    format: 'uuid',
+  })
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  /**
+   * User email address
+   * @description Must be unique across all users, used for authentication
+   * @constraints unique, not null, max length 255
+   */
+  @ApiProperty({
+    description: 'User email address (unique)',
+    example: 'john.doe@example.com',
+    format: 'email',
+    maxLength: 255,
+  })
+  @Column({ unique: true, length: 255 })
+  @Index()
+  email: string;
+
+  /**
+   * User first name
+   * @description User's given name
+   * @constraints not null, max length 100
+   */
+  @ApiProperty({
+    description: 'User first name',
+    example: 'John',
+    maxLength: 100,
+  })
+  @Column({ length: 100 })
+  firstName: string;
+
+  /**
+   * User last name
+   * @description User's family name
+   * @constraints not null, max length 100
+   */
+  @ApiProperty({
+    description: 'User last name',
+    example: 'Doe',
+    maxLength: 100,
+  })
+  @Column({ length: 100 })
+  lastName: string;
+
+  /**
+   * User password hash
+   * @description Bcrypt hashed password, excluded from default selections
+   * @constraints not null, excluded from select by default
+   */
+  @Column({ select: false })
+  password: string;
+
+  /**
+   * User role in the system
+   * @description Determines user permissions and access levels
+   * @default UserRole.USER
+   */
+  @ApiProperty({
+    description: 'User role in the system',
+    enum: UserRole,
+    default: UserRole.USER,
+  })
+  @Column({
+    type: 'enum',
+    enum: UserRole,
+    default: UserRole.USER,
+  })
+  role: UserRole;
+
+  /**
+   * User account status
+   * @description Current status of the user account
+   * @default UserStatus.ACTIVE
+   */
+  @ApiProperty({
+    description: 'User account status',
+    enum: UserStatus,
+    default: UserStatus.ACTIVE,
+  })
+  @Column({
+    type: 'enum',
+    enum: UserStatus,
+    default: UserStatus.ACTIVE,
+  })
+  @Index()
+  status: UserStatus;
+
+  /**
+   * Account creation timestamp
+   * @description Automatically set when the user is created
+   */
+  @ApiProperty({
+    description: 'Account creation timestamp',
+    example: '2023-01-01T00:00:00.000Z',
+    format: 'date-time',
+  })
+  @CreateDateColumn()
+  @Index()
+  createdAt: Date;
+
+  /**
+   * Account last update timestamp
+   * @description Automatically updated when the user is modified
+   */
+  @ApiProperty({
+    description: 'Account last update timestamp',
+    example: '2023-01-01T00:00:00.000Z',
+    format: 'date-time',
+  })
+  @UpdateDateColumn()
+  updatedAt: Date;
+
+  /**
+   * Soft delete timestamp
+   * @description Set when the user is soft deleted
+   */
+  @DeleteDateColumn()
+  deletedAt: Date;
+
+  /**
+   * Optimistic locking version
+   * @description Used for optimistic locking to prevent concurrent updates
+   */
+  @VersionColumn()
+  version: number;
+
+  /**
+   * User's orders
+   * @description One-to-many relationship with Order entity
+   * @lazy true to prevent N+1 queries
+   */
+  @OneToMany(() => Order, order => order.user, { lazy: true })
+  orders: Promise<Order[]>;
+
+  /**
+   * User's roles (if using role-based system)
+   * @description Many-to-many relationship with Role entity
+   * @lazy true to prevent N+1 queries
+   */
+  @ManyToMany(() => Role, role => role.users, { lazy: true })
+  @JoinTable({
+    name: 'user_roles',
+    joinColumn: { name: 'userId', referencedColumnName: 'id' },
+    inverseJoinColumn: { name: 'roleId', referencedColumnName: 'id' },
+  })
+  roles: Promise<Role[]>;
+
+  /**
+   * Get user's full name
+   * @returns Combined first and last name
+   */
+  get fullName(): string {
+    return `${this.firstName} ${this.lastName}`;
+  }
+
+  /**
+   * Check if user is active
+   * @returns true if user status is ACTIVE
+   */
+  isActive(): boolean {
+    return this.status === UserStatus.ACTIVE;
+  }
+
+  /**
+   * Check if user has specific role
+   * @param role Role to check
+   * @returns true if user has the role
+   */
+  hasRole(role: UserRole): boolean {
+    return this.role === role;
+  }
+}
+```
+
+## Code Documentation Standards
+
+### JSDoc Comments for Services
+```typescript
+/**
+ * User service for managing user accounts
+ * 
+ * @description Handles all user-related business logic including CRUD operations,
+ * authentication, and user management. Implements caching for performance optimization.
+ * 
+ * @example
+ * ```typescript
+ * const userService = new UsersService(userRepository, cacheService, logger);
+ * const user = await userService.findById('user-id');
+ * ```
+ * 
+ * @see {@link User} for the user entity
+ * @see {@link UserRepository} for data access layer
+ * 
+ * @author Development Team
+ * @since 1.0.0
+ */
+@Injectable()
+export class UsersService {
+  constructor(
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
+    private readonly cacheService: CacheService,
+    private readonly logger: LoggerService,
+  ) {}
+
+  /**
+   * Find a user by their unique identifier
+   * 
+   * @description Retrieves a user from cache first, then from database if not cached.
+   * Implements proper error handling and logging.
+   * 
+   * @param id - User unique identifier (UUID)
+   * @returns Promise resolving to user object
+   * 
+   * @throws {UserNotFoundException} When user is not found
+   * @throws {ValidationException} When ID format is invalid
+   * 
+   * @example
+   * ```typescript
+   * try {
+   *   const user = await userService.findById('550e8400-e29b-41d4-a716-446655440000');
+   *   console.log(`Found user: ${user.fullName}`);
+   * } catch (error) {
+   *   if (error instanceof UserNotFoundException) {
+   *     console.log('User not found');
+   *   }
+   * }
+   * ```
+   * 
+   * @performance Cached for 5 minutes to improve response times
+   * @security Excludes password field from response
+   * 
+   * @since 1.0.0
+   */
+  async findById(id: string): Promise<UserResponseDto> {
+    this.logger.debug(`Finding user by ID: ${id}`);
+
+    // Try cache first
+    const cacheKey = `user:${id}`;
+    let user = await this.cacheService.get<User>(cacheKey);
+
+    if (!user) {
+      this.logger.debug(`User not in cache, fetching from database: ${id}`);
+      
+      user = await this.userRepository.findOne({
+        where: { id },
+        select: ['id', 'email', 'firstName', 'lastName', 'role', 'status', 'createdAt', 'updatedAt'],
+      });
+
+      if (!user) {
+        this.logger.warn(`User not found: ${id}`);
+        throw new UserNotFoundException(id);
+      }
+
+      // Cache for 5 minutes
+      await this.cacheService.set(cacheKey, user, 300);
+    }
+
+    return this.transformToResponseDto(user);
+  }
+
+  /**
+   * Create a new user account
+   * 
+   * @description Creates a new user with the provided information. Validates email uniqueness,
+   * hashes password, and handles all business rules for user creation.
+   * 
+   * @param createUserDto - User creation data
+   * @returns Promise resolving to created user (without password)
+   * 
+   * @throws {EmailAlreadyExistsException} When email is already registered
+   * @throws {ValidationException} When input data is invalid
+   * 
+   * @example
+   * ```typescript
+   * const newUser = await userService.create({
+   *   email: 'john.doe@example.com',
+   *   firstName: 'John',
+   *   lastName: 'Doe',
+   *   password: 'SecurePassword123!',
+   *   role: UserRole.USER,
+   * });
+   * ```
+   * 
+   * @security Password is hashed using bcrypt with salt rounds of 12
+   * @audit Logs user creation events for security monitoring
+   * 
+   * @since 1.0.0
+   */
+  async create(createUserDto: CreateUserDto): Promise<UserResponseDto> {
+    this.logger.debug(`Creating new user: ${createUserDto.email}`);
+
+    // Check if email already exists
+    const existingUser = await this.userRepository.findOne({
+      where: { email: createUserDto.email },
+    });
+
+    if (existingUser) {
+      this.logger.warn(`Email already exists: ${createUserDto.email}`);
+      throw new EmailAlreadyExistsException(createUserDto.email);
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(createUserDto.password, 12);
+
+    // Create user entity
+    const user = this.userRepository.create({
+      ...createUserDto,
+      password: hashedPassword,
+    });
+
+    // Save to database
+    const savedUser = await this.userRepository.save(user);
+
+    this.logger.log(`User created successfully: ${savedUser.id}`);
+
+    return this.transformToResponseDto(savedUser);
+  }
+
+  /**
+   * Transform user entity to response DTO
+   * 
+   * @description Converts internal user entity to external response format,
+   * excluding sensitive fields like password.
+   * 
+   * @param user - User entity from database
+   * @returns User response DTO
+   * 
+   * @private
+   * @since 1.0.0
+   */
+  private transformToResponseDto(user: User): UserResponseDto {
+    const { password, ...userWithoutPassword } = user;
+    return {
+      ...userWithoutPassword,
+      fullName: user.fullName,
+    } as UserResponseDto;
+  }
+}
+```
+
+### Interface Documentation
+```typescript
+/**
+ * User service interface
+ * 
+ * @description Defines the contract for user service implementations.
+ * Ensures consistent API across different implementations.
+ * 
+ * @interface IUserService
+ * @since 1.0.0
+ */
+export interface IUserService {
+  /**
+   * Find user by ID
+   * 
+   * @param id User unique identifier
+   * @returns Promise resolving to user or null if not found
+   */
+  findById(id: string): Promise<UserResponseDto | null>;
+
+  /**
+   * Create new user
+   * 
+   * @param createUserDto User creation data
+   * @returns Promise resolving to created user
+   */
+  create(createUserDto: CreateUserDto): Promise<UserResponseDto>;
+
+  /**
+   * Update existing user
+   * 
+   * @param id User unique identifier
+   * @param updateUserDto User update data
+   * @returns Promise resolving to updated user
+   */
+  update(id: string, updateUserDto: UpdateUserDto): Promise<UserResponseDto>;
+
+  /**
+   * Delete user
+   * 
+   * @param id User unique identifier
+   * @returns Promise resolving when user is deleted
+   */
+  delete(id: string): Promise<void>;
+}
+```
+
+## README Documentation
+
+### Project README Template
+```markdown
+# NestJS API Project
+
+A comprehensive NestJS-based REST API with proper documentation, testing, and deployment configuration.
+
+## Table of Contents
+
+- [Features](#features)
+- [Prerequisites](#prerequisites)
+- [Installation](#installation)
+- [Configuration](#configuration)
+- [Running the Application](#running-the-application)
+- [API Documentation](#api-documentation)
+- [Testing](#testing)
+- [Database](#database)
+- [Deployment](#deployment)
+- [Contributing](#contributing)
+- [License](#license)
+
+## Features
+
+- 🚀 **Modern Stack**: NestJS, TypeScript, PostgreSQL, Redis
+- 🔐 **Authentication**: JWT-based authentication with refresh tokens
+- 📝 **API Documentation**: Comprehensive Swagger/OpenAPI documentation
+- 🧪 **Testing**: Unit, integration, and E2E tests with Jest
+- 🔍 **Validation**: Request/response validation with class-validator
+- 🚦 **Error Handling**: Global exception filters with structured error responses
+- 📊 **Logging**: Structured logging with Winston
+- 🏗️ **Architecture**: Clean architecture with proper separation of concerns
+- 🔄 **Caching**: Redis-based caching for performance optimization
+- 📈 **Monitoring**: Health checks and performance metrics
+- 🐳 **Docker**: Containerized for easy deployment
+
+## Prerequisites
+
+Before running this application, make sure you have the following installed:
+
+- **Node.js** (v18 or higher)
+- **npm** or **yarn**
+- **PostgreSQL** (v13 or higher)
+- **Redis** (v6 or higher)
+- **Docker** (optional, for containerized deployment)
+
+## Installation
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/your-org/nestjs-api.git
+   cd nestjs-api
+   ```
+
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
+
+3. **Set up environment variables**
+   ```bash
+   cp .env.example .env
+   ```
+   
+   Edit `.env` file with your configuration:
+   ```env
+   # Application
+   NODE_ENV=development
+   PORT=3000
+   
+   # Database
+   DB_HOST=localhost
+   DB_PORT=5432
+   DB_USERNAME=postgres
+   DB_PASSWORD=password
+   DB_NAME=nestjs_api
+   
+   # Redis
+   REDIS_HOST=localhost
+   REDIS_PORT=6379
+   REDIS_PASSWORD=
+   
+   # JWT
+   JWT_SECRET=your-jwt-secret-key
+   JWT_EXPIRATION=1h
+   JWT_REFRESH_EXPIRATION=7d
+   
+   # Logging
+   LOG_LEVEL=info
+   ```
+
+## Configuration
+
+### Environment Variables
+
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `NODE_ENV` | Application environment | `development` | No |
+| `PORT` | Server port | `3000` | No |
+| `DB_HOST` | Database host | `localhost` | Yes |
+| `DB_PORT` | Database port | `5432` | Yes |
+| `DB_USERNAME` | Database username | - | Yes |
+| `DB_PASSWORD` | Database password | - | Yes |
+| `DB_NAME` | Database name | - | Yes |
+| `REDIS_HOST` | Redis host | `localhost` | Yes |
+| `REDIS_PORT` | Redis port | `6379` | Yes |
+| `JWT_SECRET` | JWT signing secret | - | Yes |
+| `JWT_EXPIRATION` | JWT token expiration | `1h` | No |
+| `LOG_LEVEL` | Logging level | `info` | No |
+
+### Database Setup
+
+1. **Create database**
+   ```sql
+   CREATE DATABASE nestjs_api;
+   ```
+
+2. **Run migrations**
+   ```bash
+   npm run migration:run
+   ```
+
+3. **Seed database (optional)**
+   ```bash
+   npm run seed
+   ```
+
+## Running the Application
+
+### Development Mode
+```bash
+# Start with hot-reload
+npm run start:dev
+
+# Start with debug mode
+npm run start:debug
+```
+
+### Production Mode
+```bash
+# Build the application
+npm run build
+
+# Start production server
+npm run start:prod
+```
+
+### Docker
+```bash
+# Build and start with Docker Compose
+docker-compose up --build
+
+# Start in detached mode
+docker-compose up -d
+```
+
+## API Documentation
+
+### Swagger UI
+Once the application is running, you can access the interactive API documentation at:
+- **Development**: http://localhost:3000/api/docs
+- **Production**: https://your-domain.com/api/docs
+
+### API Endpoints
+
+#### Authentication
+- `POST /api/v1/auth/login` - User login
+- `POST /api/v1/auth/register` - User registration
+- `POST /api/v1/auth/refresh` - Refresh access token
+- `POST /api/v1/auth/logout` - User logout
+
+#### Users
+- `GET /api/v1/users` - Get all users (paginated)
+- `GET /api/v1/users/:id` - Get user by ID
+- `POST /api/v1/users` - Create new user
+- `PUT /api/v1/users/:id` - Update user
+- `DELETE /api/v1/users/:id` - Delete user
+
+#### Health Check
+- `GET /health` - Application health status
+- `GET /health/database` - Database health status
+- `GET /health/redis` - Redis health status
+
+## Testing
+
+### Running Tests
+```bash
+# Unit tests
+npm run test
+
+# E2E tests
+npm run test:e2e
+
+# Test coverage
+npm run test:cov
+
+# Watch mode
+npm run test:watch
+```
+
+### Test Structure
+```
+src/
+├── modules/
+│   └── users/
+│       ├── users.service.spec.ts
+│       ├── users.controller.spec.ts
+│       └── __tests__/
+│           └── users.integration.spec.ts
+test/
+├── e2e/
+│   └── users.e2e-spec.ts
+└── fixtures/
+    └── user.fixtures.ts
+```
+
+### Coverage Requirements
+- **Minimum**: 80% overall coverage
+- **Critical paths**: 100% coverage required
+- **Branches**: 80% coverage required
+- **Functions**: 80% coverage required
+
+## Database
+
+### Migrations
+```bash
+# Generate migration
+npm run migration:generate -- -n MigrationName
+
+# Run migrations
+npm run migration:run
+
+# Revert migration
+npm run migration:revert
+```
+
+### Seeding
+```bash
+# Run all seeds
+npm run seed
+
+# Run specific seed
+npm run seed:users
+```
+
+## Deployment
+
+### Environment Setup
+1. Set up production environment variables
+2. Configure database and Redis connections
+3. Set up SSL certificates
+4. Configure reverse proxy (Nginx)
+
+### Docker Deployment
+```bash
+# Build production image
+docker build -t nestjs-api:latest .
+
+# Run with Docker Compose
+docker-compose -f docker-compose.prod.yml up -d
+```
+
+### Cloud Deployment
+- **AWS**: Use ECS with RDS and ElastiCache
+- **Google Cloud**: Use Cloud Run with Cloud SQL and Memorystore
+- **Azure**: Use Container Instances with Azure Database
+
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+### Development Guidelines
+- Follow TypeScript and NestJS best practices
+- Write comprehensive tests for new features
+- Update documentation for API changes
+- Use conventional commit messages
+- Ensure code passes all linting and tests
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Support
+
+For support and questions:
+- 📧 Email: support@example.com
+- 💬 Slack: #api-support
+- 🐛 Issues: [GitHub Issues](https://github.com/your-org/nestjs-api/issues)
+```
+
+## Documentation Anti-Patterns to Avoid
+
+### API Documentation Anti-Patterns
+- Don't skip Swagger decorators for public endpoints
+- Don't use generic or unclear endpoint descriptions
+- Don't ignore request/response examples
+- Don't skip error response documentation
+- Don't use inconsistent naming in documentation
+- Don't ignore API versioning in documentation
+- Don't skip authentication requirements documentation
+
+### Code Documentation Anti-Patterns
+- Don't write comments that explain what the code does (focus on why)
+- Don't skip JSDoc comments for public methods
+- Don't use outdated or incorrect comments
+- Don't ignore complex business logic documentation
+- Don't skip parameter and return type documentation
+- Don't ignore error handling documentation
+- Don't skip performance and security considerations
+
+### README Anti-Patterns
+- Don't skip installation and setup instructions
+- Don't ignore environment configuration documentation
+- Don't skip API endpoint documentation
+- Don't ignore testing instructions
+- Don't skip deployment guidelines
+- Don't ignore contribution guidelines
+- Don't skip license and support information
+
+### General Documentation Anti-Patterns
+- Don't ignore documentation updates when code changes
+- Don't skip examples and usage scenarios
+- Don't ignore documentation testing and validation
+- Don't skip documentation versioning
+- Don't ignore accessibility in documentation
+- Don't skip documentation maintenance and reviews

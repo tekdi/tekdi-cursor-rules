@@ -1,0 +1,349 @@
+---
+description: USE WHEN implementing NestJS core 
+architecture patterns, organizing project structure, 
+managing dependencies, or setting up modular applications
+globs: ["**/*.ts", "**/*.js", "**/*.json"]
+alwaysApply: false
+---
+
+# NestJS Core Architecture & Project Structure
+
+## Layered Architecture Implementation
+
+### Controller Layer Rules
+- Keep controllers thin and focused on HTTP concerns only
+- Handle request/response transformation and validation
+- Delegate all business logic to service layer
+- Use proper HTTP decorators and status codes
+- Implement comprehensive input validation with DTOs
+
+```typescript
+@Controller('users')
+export class UsersController {
+  constructor(private readonly usersService: UsersService) {}
+
+  @Post()
+  @HttpCode(HttpStatus.CREATED)
+  async create(@Body() createUserDto: CreateUserDto): Promise<UserResponseDto> {
+    return this.usersService.create(createUserDto);
+  }
+
+  @Get(':id')
+  async findOne(@Param('id') id: string): Promise<UserResponseDto> {
+    return this.usersService.findById(id);
+  }
+}
+```
+
+### Service Layer Rules
+- Contain all business logic and domain rules
+- Orchestrate operations across multiple repositories
+- Handle business rule validation and transaction management
+- Make services testable and mockable
+- Use dependency injection for all external dependencies
+
+```typescript
+@Injectable()
+export class UsersService {
+  constructor(
+    private readonly userRepository: UserRepository,
+    private readonly configService: ConfigService,
+  ) {}
+
+  async create(createUserDto: CreateUserDto): Promise<UserResponseDto> {
+    // Business logic implementation
+    const existingUser = await this.userRepository.findByEmail(createUserDto.email);
+    if (existingUser) {
+      throw new ConflictException('User already exists');
+    }
+    return this.userRepository.create(createUserDto);
+  }
+}
+```
+
+### Repository Layer Rules
+- Abstract data access logic from business logic
+- Implement data persistence operations with proper error handling
+- Handle database-specific concerns and optimizations
+- Provide clean interfaces for data operations
+- Use TypeORM repository pattern or custom repositories
+
+```typescript
+@Injectable()
+export class UserRepository {
+  constructor(
+    @InjectRepository(User)
+    private readonly repository: Repository<User>,
+  ) {}
+
+  async findByEmail(email: string): Promise<User | null> {
+    return this.repository.findOne({ where: { email } });
+  }
+
+  async create(userData: CreateUserDto): Promise<User> {
+    const user = this.repository.create(userData);
+    return this.repository.save(user);
+  }
+}
+```
+
+## Dependency Injection Patterns
+
+### Constructor Injection Rules
+- Use constructor injection for all dependencies
+- Inject interfaces, not concrete implementations when possible
+- Make dependencies explicit and testable
+- Avoid circular dependencies between modules
+
+```typescript
+@Injectable()
+export class UsersService {
+  constructor(
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
+    private readonly configService: ConfigService,
+    private readonly logger: Logger,
+  ) {}
+}
+```
+
+### Custom Providers Rules
+- Use custom providers for complex dependency scenarios
+- Implement factory providers for dynamic configurations
+- Use async providers for dependencies requiring initialization
+- Export only necessary components through barrel exports
+
+```typescript
+@Module({
+  providers: [
+    {
+      provide: 'DATABASE_CONNECTION',
+      useFactory: async (configService: ConfigService) => {
+        return createConnection(configService.get('database'));
+      },
+      inject: [ConfigService],
+    },
+  ],
+})
+export class DatabaseModule {}
+```
+
+## Module Organization Patterns
+
+### Feature Module Rules
+- Each feature should be a self-contained module
+- Import only required dependencies to avoid circular references
+- Use forRoot() and forFeature() patterns for configurable modules
+- Follow single responsibility principle for module design
+
+```typescript
+@Module({
+  imports: [TypeOrmModule.forFeature([User]), ConfigModule],
+  controllers: [UsersController],
+  providers: [UsersService, UserRepository],
+  exports: [UsersService],
+})
+export class UsersModule {}
+```
+
+### Shared Module Rules
+- Create shared modules for common functionality
+- Use @Global() decorator sparingly, only for truly global services
+- Implement proper module imports and exports
+- Keep shared modules focused and minimal
+
+## Project Structure Standards
+
+### Directory Organization Rules
+- Use feature-based module structure with clear separation
+- Follow consistent naming conventions across all files
+- Group related functionality in dedicated directories
+- Separate common utilities and shared components
+
+```
+src/
+├── modules/
+│   ├── users/
+│   │   ├── controllers/
+│   │   ├── services/
+│   │   ├── entities/
+│   │   ├── dto/
+│   │   └── repositories/
+├── common/
+│   ├── decorators/
+│   ├── filters/
+│   ├── guards/
+│   └── interceptors/
+├── config/
+└── shared/
+```
+
+### File Naming Conventions
+- Use kebab-case for file names with descriptive suffixes
+- Use plural names for feature modules
+- Use singular names for entities and DTOs
+- Follow consistent patterns across the entire codebase
+
+| File Type | Convention | Example |
+|-----------|------------|---------|
+| **Controllers** | `*.controller.ts` | `users.controller.ts` |
+| **Services** | `*.service.ts` | `users.service.ts` |
+| **Entities** | `*.entity.ts` | `user.entity.ts` |
+| **DTOs** | `*.dto.ts` | `create-user.dto.ts` |
+| **Modules** | `*.module.ts` | `users.module.ts` |
+
+## Configuration Management (12-Factor III)
+
+### Environment Configuration Rules
+- Store all configuration in environment variables
+- Use ConfigModule with validation schemas
+- Never commit sensitive configuration to version control
+- Implement different configs for different environments
+
+```typescript
+@Module({
+  imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      validationSchema: Joi.object({
+        NODE_ENV: Joi.string().valid('development', 'production', 'test').default('development'),
+        PORT: Joi.number().default(3000),
+        DATABASE_URL: Joi.string().required(),
+      }),
+    }),
+  ],
+})
+export class AppModule {}
+```
+
+## Code Quality Standards
+
+### Type Safety Rules
+- Use TypeScript for all code with strict mode enabled
+- Implement proper interface definitions for all contracts
+- Use generic types where appropriate
+- Avoid `any` type unless absolutely necessary
+
+### Naming Convention Rules
+- **Classes**: PascalCase (`UsersController`, `UserService`)
+- **Methods/Variables**: camelCase (`findAllUsers`, `isAuthenticated`)
+- **Constants**: UPPER_SNAKE_CASE (`MAX_RETRY_ATTEMPTS`)
+- **Interfaces**: PascalCase with 'I' prefix (`IUserService`)
+
+### Single Responsibility Rules
+- Each class should have one reason to change
+- Keep methods focused on single tasks
+- Separate concerns across different layers
+- Use composition over inheritance
+
+## 12-Factor App Compliance
+
+### Codebase Management (12-Factor I)
+- One codebase tracked in revision control, many deploys
+- Use monorepo structure for related services
+- Maintain single source of truth for application state
+
+### Dependencies (12-Factor II)
+- Explicitly declare and isolate dependencies
+- Use package.json and package-lock.json
+- Never rely on system-wide packages
+
+### Build, Release, Run (12-Factor V)
+- Strictly separate build and run stages
+- Use immutable releases with unique identifiers
+- Structure code to support automated build processes
+
+### Process Architecture (12-Factor VI)
+- Design stateless processes that share nothing
+- Store session state in external stores
+- Make processes disposable and easily replaceable
+
+### Port Binding (12-Factor VII)
+- Export services via port binding
+- Make applications self-contained and portable
+- Use environment variables for port configuration
+
+### Disposability (12-Factor IX)
+- Implement proper signal handling for shutdown
+- Handle termination signals gracefully
+- Minimize startup time through efficient initialization
+
+```typescript
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule);
+  
+  // Graceful shutdown
+  app.enableShutdownHooks();
+  
+  await app.listen(process.env.PORT || 3000);
+}
+```
+
+### Concurrency (12-Factor VIII)
+- Scale out via the process model
+- Use asynchronous patterns for I/O operations
+- Implement proper connection pooling
+- Use background tasks for non-blocking operations
+
+### Dev/Prod Parity (12-Factor X)
+- Keep development, staging, and production as similar as possible
+- Use containerization for consistent environments
+- Use same backing services across environments
+
+## Performance Considerations
+
+### Module Loading Rules
+- Use lazy loading for feature modules when appropriate
+- Implement proper module caching
+- Avoid unnecessary module imports
+- Use dynamic imports for conditional loading
+
+### Memory Management Rules
+- Implement proper cleanup in OnModuleDestroy
+- Avoid memory leaks with proper subscription cleanup
+- Use object pooling for expensive operations
+- Code with memory usage patterns in mind
+
+## Quality Attributes Integration
+
+### Scalability Rules
+- Use modular architecture to support horizontal scaling
+- Design for microservices architecture when appropriate
+- Implement proper connection pooling patterns
+- Code with load balancing considerations
+
+### Maintainability Rules
+- Follow consistent coding standards with ESLint/Prettier
+- Implement modular design with clear separation of concerns
+- Document APIs comprehensively with Swagger/OpenAPI
+- Use dependency injection for loose coupling
+
+### Testability Rules
+- Write unit tests for all business logic (>80% coverage)
+- Implement integration tests for service interfaces
+- Use Test-Driven Development (TDD) approach
+- Create comprehensive test fixtures and helpers
+
+### Observability Rules
+- Implement structured logging with correlation IDs
+- Code with metrics collection in mind
+- Implement proper error handling and logging
+- Design for monitoring and debugging
+
+## Anti-Patterns to Avoid
+
+### Architecture Anti-Patterns
+- Don't put business logic in controllers
+- Don't create circular dependencies between modules
+- Don't use synchronous operations for I/O
+- Don't hardcode configuration values
+- Don't skip input validation and sanitization
+- Don't ignore proper error handling and logging
+
+### Code Anti-Patterns
+- Don't use `any` type without justification
+- Don't create God objects or services
+- Don't ignore TypeScript compiler warnings
+- Don't skip proper dependency injection
+- Don't use direct database queries in controllers
+- Don't expose internal implementation details

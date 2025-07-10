@@ -1,0 +1,337 @@
+---
+description: USE WHEN configuring deployments, managing environment variables, setting up Docker, CI/CD, or production configurations
+globs: ["**/*.config.ts", "**/Dockerfile", "**/*.yml", "**/*.yaml", "**/*.json"]
+alwaysApply: false
+---
+
+# NestJS Deployment & Configuration Management
+
+## Configuration Management
+
+### Environment Configuration Rules
+- Use environment variables for all configuration values
+- Implement configuration validation with proper schemas
+- Separate configuration by environment (dev, staging, production)
+- Use secure defaults and validate required environment variables
+- Implement proper configuration loading and validation
+
+### Configuration Management Rules
+- Store configuration in environment variables (12-Factor III)
+- Use configuration validation to catch errors early
+- Implement proper type conversion for environment variables
+- Use structured configuration with proper namespacing
+- Provide sensible defaults for development environments
+
+```typescript
+// config/app.config.ts
+export const appConfig = registerAs('app', () => ({
+  nodeEnv: process.env.NODE_ENV || 'development',
+  port: parseInt(process.env.PORT, 10) || 3000,
+  globalPrefix: process.env.GLOBAL_PREFIX || 'api',
+  corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+}));
+
+// config/database.config.ts
+export const databaseConfig = registerAs('database', () => ({
+  type: 'postgres' as const,
+  host: process.env.DB_HOST || 'localhost',
+  port: parseInt(process.env.DB_PORT, 10) || 5432,
+  username: process.env.DB_USERNAME || 'postgres',
+  password: process.env.DB_PASSWORD || 'password',
+  database: process.env.DB_NAME || 'nestjs_app',
+  synchronize: process.env.NODE_ENV === 'development',
+  logging: process.env.NODE_ENV === 'development',
+}));
+
+// config/jwt.config.ts
+export const jwtConfig = registerAs('jwt', () => ({
+  secret: process.env.JWT_SECRET || 'default-secret-change-in-production',
+  expiresIn: process.env.JWT_EXPIRES_IN || '1h',
+  refreshSecret: process.env.JWT_REFRESH_SECRET || 'refresh-secret-change-in-production',
+  refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
+}));
+```
+
+### Configuration Validation
+```typescript
+// config/validation.schema.ts
+import * as Joi from 'joi';
+
+export const validationSchema = Joi.object({
+  // Application
+  NODE_ENV: Joi.string().valid('development', 'production', 'test').default('development'),
+  PORT: Joi.number().default(3000),
+  GLOBAL_PREFIX: Joi.string().default('api'),
+  
+  // Database
+  DB_HOST: Joi.string().required(),
+  DB_PORT: Joi.number().default(5432),
+  DB_USERNAME: Joi.string().required(),
+  DB_PASSWORD: Joi.string().required(),
+  DB_NAME: Joi.string().required(),
+  DB_POOL_MAX: Joi.number().default(20),
+  DB_POOL_MIN: Joi.number().default(5),
+  
+  // Redis
+  REDIS_HOST: Joi.string().required(),
+  REDIS_PORT: Joi.number().default(6379),
+  REDIS_PASSWORD: Joi.string().optional(),
+  REDIS_DB: Joi.number().default(0),
+  REDIS_TTL: Joi.number().default(300),
+  
+  // JWT
+  JWT_SECRET: Joi.string().min(32).required(),
+  JWT_EXPIRES_IN: Joi.string().default('1h'),
+  JWT_REFRESH_SECRET: Joi.string().min(32).required(),
+  JWT_REFRESH_EXPIRES_IN: Joi.string().default('7d'),
+  
+  // Logging
+  LOG_LEVEL: Joi.string().valid('error', 'warn', 'info', 'debug', 'verbose').default('info'),
+  LOG_FORMAT: Joi.string().valid('json', 'simple').default('json'),
+  
+  // Security
+  CORS_ORIGIN: Joi.string().default('http://localhost:3000'),
+  RATE_LIMIT_TTL: Joi.number().default(60),
+  RATE_LIMIT_LIMIT: Joi.number().default(100),
+  
+  // External Services
+  SMTP_HOST: Joi.string().optional(),
+  SMTP_PORT: Joi.number().optional(),
+  SMTP_USER: Joi.string().optional(),
+  SMTP_PASS: Joi.string().optional(),
+  
+  // Monitoring
+  SENTRY_DSN: Joi.string().optional(),
+  PROMETHEUS_ENABLED: Joi.boolean().default(false),
+  HEALTH_CHECK_TIMEOUT: Joi.number().default(5000),
+});
+
+// config/config.module.ts
+@Module({
+  imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      load: [appConfig, databaseConfig, redisConfig, jwtConfig, loggingConfig],
+      validationSchema,
+      validationOptions: {
+        allowUnknown: true,
+        abortEarly: false,
+      },
+      expandVariables: true,
+    }),
+  ],
+})
+export class ConfigurationModule {}
+```
+
+### Environment-Specific Configuration
+```typescript
+// config/environments/development.ts
+export const developmentConfig = {
+  database: {
+    logging: true,
+    synchronize: true,
+    dropSchema: false,
+  },
+  logging: {
+    level: 'debug',
+    prettyPrint: true,
+  },
+  security: {
+    cors: {
+      origin: true,
+      credentials: true,
+    },
+    helmet: {
+      contentSecurityPolicy: false,
+    },
+  },
+  cache: {
+    ttl: 60, // 1 minute for development
+  },
+};
+
+// config/environments/production.ts
+export const productionConfig = {
+  database: {
+    logging: false,
+    synchronize: false,
+    ssl: {
+      rejectUnauthorized: false,
+    },
+  },
+  logging: {
+    level: 'info',
+    prettyPrint: false,
+  },
+  security: {
+    cors: {
+      origin: process.env.CORS_ORIGIN?.split(',') || false,
+      credentials: true,
+    },
+    helmet: {
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          styleSrc: ["'self'", "'unsafe-inline'"],
+          scriptSrc: ["'self'"],
+          imgSrc: ["'self'", "data:", "https:"],
+        },
+      },
+    },
+  },
+  cache: {
+    ttl: 300, // 5 minutes for production
+  },
+};
+
+// config/environments/test.ts
+export const testConfig = {
+  database: {
+    logging: false,
+    synchronize: true,
+    dropSchema: true,
+  },
+  logging: {
+    level: 'error',
+    prettyPrint: false,
+  },
+  cache: {
+    ttl: 10, // 10 seconds for testing
+  },
+};
+```
+
+## Health Check Implementation
+
+### Health Check Service
+```typescript
+// health/health.controller.ts
+@Controller('health')
+export class HealthController {
+  constructor(
+    private health: HealthCheckService,
+    private db: TypeOrmHealthIndicator,
+    private redis: RedisHealthIndicator,
+    private memory: MemoryHealthIndicator,
+    private disk: DiskHealthIndicator,
+  ) {}
+
+  @Get()
+  @HealthCheck()
+  check() {
+    return this.health.check([
+      () => this.db.pingCheck('database'),
+      () => this.redis.pingCheck('redis'),
+      () => this.memory.checkHeap('memory_heap', 150 * 1024 * 1024),
+      () => this.disk.checkStorage('storage', { path: '/', threshold: 250 * 1024 * 1024 * 1024 }),
+    ]);
+  }
+
+  @Get('ready')
+  @HealthCheck()
+  ready() {
+    return this.health.check([
+      () => this.db.pingCheck('database'),
+      () => this.redis.pingCheck('redis'),
+    ]);
+  }
+
+  @Get('live')
+  @HealthCheck()
+  live() {
+    return this.health.check([
+      () => this.memory.checkHeap('memory_heap', 300 * 1024 * 1024),
+    ]);
+  }
+}
+```
+
+### Logging Configuration
+```typescript
+// logging/logger.service.ts
+@Injectable()
+export class LoggerService extends Logger {
+  private winston: winston.Logger;
+
+  constructor(private configService: ConfigService) {
+    super();
+    this.winston = this.createWinstonLogger();
+  }
+
+  private createWinstonLogger(): winston.Logger {
+    const logLevel = this.configService.get('LOG_LEVEL', 'info');
+    const nodeEnv = this.configService.get('NODE_ENV', 'development');
+
+    const transports: winston.transport[] = [
+      new winston.transports.Console({
+        format: winston.format.combine(
+          winston.format.timestamp(),
+          winston.format.colorize({ all: nodeEnv === 'development' }),
+          winston.format.printf(({ timestamp, level, message, context, ...meta }) => {
+            const contextStr = context ? `[${context}] ` : '';
+            const metaStr = Object.keys(meta).length ? ` ${JSON.stringify(meta)}` : '';
+            return `${timestamp} ${level}: ${contextStr}${message}${metaStr}`;
+          }),
+        ),
+      }),
+    ];
+
+    if (nodeEnv === 'production') {
+      transports.push(
+        new winston.transports.File({
+          filename: 'logs/error.log',
+          level: 'error',
+          format: winston.format.combine(
+            winston.format.timestamp(),
+            winston.format.json(),
+          ),
+          maxsize: 5242880, // 5MB
+          maxFiles: 5,
+        }),
+        new winston.transports.File({
+          filename: 'logs/combined.log',
+          format: winston.format.combine(
+            winston.format.timestamp(),
+            winston.format.json(),
+          ),
+          maxsize: 5242880, // 5MB
+          maxFiles: 5,
+        }),
+      );
+    }
+
+    return winston.createLogger({
+      level: logLevel,
+      format: winston.format.combine(
+        winston.format.timestamp(),
+        winston.format.errors({ stack: true }),
+        winston.format.json(),
+      ),
+      defaultMeta: {
+        service: 'nestjs-api',
+        environment: nodeEnv,
+      },
+      transports,
+    });
+  }
+}
+```
+
+## Configuration Anti-Patterns to Avoid
+
+### Configuration Anti-Patterns
+- Don't hardcode configuration values in code
+- Don't commit secrets to version control
+- Don't use same configuration across all environments
+- Don't ignore environment variable validation
+- Don't skip configuration documentation
+- Don't use weak or default secrets in production
+
+### Security Anti-Patterns
+- Don't skip security headers configuration
+- Don't ignore HTTPS enforcement
+- Don't skip CORS configuration
+- Don't ignore rate limiting
+- Don't skip security auditing
+- Don't ignore proper authentication/authorization

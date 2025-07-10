@@ -1,0 +1,537 @@
+---
+description: USE WHEN writing tests, implementing testing strategies, ensuring code quality, or setting up test environments
+globs: ["**/*.spec.ts", "**/*.test.ts", "**/*.e2e-spec.ts", "**/*.service.ts", "**/*.controller.ts"]
+alwaysApply: false
+---
+
+# NestJS Testing & Code Quality
+
+## Testing Strategy & Implementation
+
+### Test Structure Organization
+```
+src/
+├── modules/
+│   ├── users/
+│   │   ├── users.controller.spec.ts
+│   │   ├── users.service.spec.ts
+│   │   ├── users.repository.spec.ts
+│   │   └── __tests__/
+│   │       ├── integration/
+│   │       │   └── users.integration.spec.ts
+│   │       └── fixtures/
+│   │           └── user.fixtures.ts
+test/
+├── e2e/
+│   ├── users.e2e-spec.ts
+│   └── auth.e2e-spec.ts
+├── fixtures/
+│   └── global.fixtures.ts
+├── helpers/
+│   └── test.helpers.ts
+└── setup/
+    ├── test.setup.ts
+    └── database.setup.ts
+```
+
+### Testing Strategy Rules
+- Write unit tests for all services and business logic
+- Create integration tests for database operations
+- Implement end-to-end tests for critical user flows
+- Use proper mocking for external dependencies
+- Maintain high test coverage (>80%) for critical paths
+
+### Test Organization Rules
+- Organize tests alongside source code
+- Use descriptive test names and clear assertions
+- Follow AAA pattern (Arrange, Act, Assert)
+- Create reusable test fixtures and helpers
+- Implement proper test isolation and cleanup
+
+### Test Configuration
+```typescript
+// jest.config.js
+module.exports = {
+  moduleFileExtensions: ['js', 'json', 'ts'],
+  rootDir: 'src',
+  testRegex: '.*\\.spec\\.ts$',
+  transform: {
+    '^.+\\.(t|j)s$': 'ts-jest',
+  },
+  collectCoverageFrom: [
+    '**/*.(t|j)s',
+    '!**/*.spec.ts',
+    '!**/*.interface.ts',
+    '!**/*.dto.ts',
+    '!**/*.entity.ts',
+    '!**/node_modules/**',
+    '!**/dist/**',
+  ],
+  coverageDirectory: '../coverage',
+  testEnvironment: 'node',
+  coverageReporters: ['text', 'lcov', 'html'],
+  coverageThreshold: {
+    global: {
+      branches: 80,
+      functions: 80,
+      lines: 80,
+      statements: 80,
+    },
+  },
+  setupFilesAfterEnv: ['<rootDir>/../test/setup/test.setup.ts'],
+};
+
+// test/setup/test.setup.ts
+import { Test } from '@nestjs/testing';
+import { TypeOrmModule } from '@nestjs/typeorm';
+
+// Global test setup
+beforeAll(async () => {
+  // Setup test database connection
+  process.env.NODE_ENV = 'test';
+});
+
+afterAll(async () => {
+  // Cleanup after all tests
+});
+```
+
+### Mock Repository Patterns
+```typescript
+// test/helpers/mock-repository.helper.ts
+export type MockRepository<T = any> = Partial<Record<keyof Repository<T>, jest.Mock>>;
+
+export const createMockRepository = <T = any>(): MockRepository<T> => ({
+  find: jest.fn(),
+  findOne: jest.fn(),
+  findOneBy: jest.fn(),
+  create: jest.fn(),
+  save: jest.fn(),
+  update: jest.fn(),
+  delete: jest.fn(),
+  remove: jest.fn(),
+  createQueryBuilder: jest.fn(() => ({
+    where: jest.fn().mockReturnThis(),
+    andWhere: jest.fn().mockReturnThis(),
+    orWhere: jest.fn().mockReturnThis(),
+    orderBy: jest.fn().mockReturnThis(),
+    skip: jest.fn().mockReturnThis(),
+    take: jest.fn().mockReturnThis(),
+    leftJoinAndSelect: jest.fn().mockReturnThis(),
+    getMany: jest.fn(),
+    getOne: jest.fn(),
+    getManyAndCount: jest.fn(),
+  })),
+});
+
+export const createMockCacheService = () => ({
+  get: jest.fn(),
+  set: jest.fn(),
+  del: jest.fn(),
+  reset: jest.fn(),
+});
+
+export const createMockLogger = () => ({
+  log: jest.fn(),
+  error: jest.fn(),
+  warn: jest.fn(),
+  debug: jest.fn(),
+  verbose: jest.fn(),
+});
+```
+
+### Unit Testing Rules
+- Write tests that are independent and can run in any order
+- Use descriptive test names that explain what is being tested
+- Follow AAA pattern (Arrange, Act, Assert)
+- Mock external dependencies and services
+- Test both success and failure scenarios
+- Maintain at least 80% code coverage
+
+```typescript
+describe('UserService', () => {
+  let service: UserService;
+  let repository: Repository<User>;
+  let cacheService: CacheService;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        UserService,
+        {
+          provide: getRepositoryToken(User),
+          useValue: {
+            findOne: jest.fn(),
+            save: jest.fn(),
+            create: jest.fn(),
+            update: jest.fn(),
+            delete: jest.fn(),
+          },
+        },
+        {
+          provide: CacheService,
+          useValue: {
+            get: jest.fn(),
+            set: jest.fn(),
+            del: jest.fn(),
+          },
+        },
+      ],
+    }).compile();
+
+    service = module.get<UserService>(UserService);
+    repository = module.get<Repository<User>>(getRepositoryToken(User));
+    cacheService = module.get<CacheService>(CacheService);
+  });
+
+  describe('findById', () => {
+    it('should return user when found in cache', async () => {
+      // Arrange
+      const userId = 'user-123';
+      const cachedUser = { id: userId, email: 'test@example.com' };
+      jest.spyOn(cacheService, 'get').mockResolvedValue(cachedUser);
+
+      // Act
+      const result = await service.findById(userId);
+
+      // Assert
+      expect(result).toEqual(cachedUser);
+      expect(cacheService.get).toHaveBeenCalledWith(`user:${userId}`);
+      expect(repository.findOne).not.toHaveBeenCalled();
+    });
+
+    it('should throw NotFoundException when user not found', async () => {
+      // Arrange
+      const userId = 'non-existent';
+      jest.spyOn(cacheService, 'get').mockResolvedValue(null);
+      jest.spyOn(repository, 'findOne').mockResolvedValue(null);
+
+      // Act & Assert
+      await expect(service.findById(userId)).rejects.toThrow(NotFoundException);
+    });
+  });
+});
+```
+
+### Integration Testing Rules
+- Test complete request-response cycles
+- Use test database for data persistence testing
+- Test authentication and authorization flows
+- Verify error handling and edge cases
+- Test API contracts and response formats
+
+```typescript
+describe('UsersController (e2e)', () => {
+  let app: INestApplication;
+  let userRepository: Repository<User>;
+  let jwtService: JwtService;
+
+  beforeAll(async () => {
+    const moduleFixture: TestingModule = await Test.createTestingModule({
+      imports: [AppModule],
+    })
+      .overrideProvider(ConfigService)
+      .useValue({
+        get: jest.fn((key: string) => {
+          const config = {
+            DATABASE_URL: 'postgresql://test:test@localhost:5432/test_db',
+            JWT_SECRET: 'test-secret',
+            JWT_EXPIRATION: '1h',
+          };
+          return config[key];
+        }),
+      })
+      .compile();
+
+    app = moduleFixture.createNestApplication();
+    app.useGlobalPipes(new ValidationPipe());
+    await app.init();
+
+    userRepository = moduleFixture.get<Repository<User>>(getRepositoryToken(User));
+    jwtService = moduleFixture.get<JwtService>(JwtService);
+  });
+
+  beforeEach(async () => {
+    await userRepository.clear();
+  });
+
+  describe('POST /users', () => {
+    it('should create a new user', async () => {
+      const createUserDto = {
+        email: 'test@example.com',
+        password: 'SecurePassword123!',
+        firstName: 'John',
+        lastName: 'Doe',
+      };
+
+      const response = await request(app.getHttpServer())
+        .post('/users')
+        .send(createUserDto)
+        .expect(201);
+
+      expect(response.body).toMatchObject({
+        email: createUserDto.email,
+        firstName: createUserDto.firstName,
+        lastName: createUserDto.lastName,
+      });
+      expect(response.body.password).toBeUndefined();
+    });
+
+    it('should return 400 for invalid email', async () => {
+      const createUserDto = {
+        email: 'invalid-email',
+        password: 'SecurePassword123!',
+        firstName: 'John',
+        lastName: 'Doe',
+      };
+
+      const response = await request(app.getHttpServer())
+        .post('/users')
+        .send(createUserDto)
+        .expect(400);
+
+      expect(response.body.error.code).toBe('VALIDATION_ERROR');
+    });
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+});
+```
+
+## Test Utilities & Helpers
+
+### Test Fixtures
+```typescript
+export class UserFixtures {
+  static createUser(overrides: Partial<User> = {}): User {
+    return {
+      id: faker.string.uuid(),
+      email: faker.internet.email(),
+      firstName: faker.person.firstName(),
+      lastName: faker.person.lastName(),
+      password: faker.internet.password(),
+      status: UserStatus.ACTIVE,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      ...overrides,
+    } as User;
+  }
+
+  static createUserList(count: number, overrides: Partial<User> = {}): User[] {
+    return Array.from({ length: count }, () => this.createUser(overrides));
+  }
+
+  static createUserDto(overrides: Partial<CreateUserDto> = {}): CreateUserDto {
+    return {
+      email: faker.internet.email(),
+      firstName: faker.person.firstName(),
+      lastName: faker.person.lastName(),
+      password: 'SecurePassword123!',
+      ...overrides,
+    };
+  }
+
+  static updateUserDto(overrides: Partial<UpdateUserDto> = {}): UpdateUserDto {
+    return {
+      firstName: faker.person.firstName(),
+      lastName: faker.person.lastName(),
+      ...overrides,
+    };
+  }
+}
+```
+
+### Mock Factories
+```typescript
+export function createMockRepository<T = any>(): MockRepository<T> {
+  return {
+    find: jest.fn(),
+    findOne: jest.fn(),
+    findOneBy: jest.fn(),
+    create: jest.fn(),
+    save: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+    remove: jest.fn(),
+    createQueryBuilder: jest.fn(() => ({
+      select: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      orWhere: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      skip: jest.fn().mockReturnThis(),
+      take: jest.fn().mockReturnThis(),
+      getMany: jest.fn(),
+      getOne: jest.fn(),
+      getManyAndCount: jest.fn(),
+      getRawMany: jest.fn(),
+      getRawOne: jest.fn(),
+    })),
+  };
+}
+
+export function createMockCacheService(): jest.Mocked<CacheService> {
+  return {
+    get: jest.fn(),
+    set: jest.fn(),
+    del: jest.fn(),
+    invalidatePattern: jest.fn(),
+    getOrSet: jest.fn(),
+    mget: jest.fn(),
+    mset: jest.fn(),
+  };
+}
+
+export function createMockLogger(): jest.Mocked<LoggerService> {
+  return {
+    log: jest.fn(),
+    error: jest.fn(),
+    warn: jest.fn(),
+    debug: jest.fn(),
+    verbose: jest.fn(),
+  };
+}
+```
+
+### Database Helper
+```typescript
+export class DatabaseHelper {
+  constructor(private userRepository: Repository<User>) {}
+
+  async cleanup(): Promise<void> {
+    await this.userRepository.clear();
+  }
+
+  async createUser(overrides: Partial<User> = {}): Promise<User> {
+    const userData = UserFixtures.createUser(overrides);
+    const user = this.userRepository.create(userData);
+    return this.userRepository.save(user);
+  }
+
+  async createUserList(count: number, overrides: Partial<User> = {}): Promise<User[]> {
+    const users = UserFixtures.createUserList(count, overrides);
+    const createdUsers = users.map(user => this.userRepository.create(user));
+    return this.userRepository.save(createdUsers);
+  }
+
+  async findUserByEmail(email: string): Promise<User | null> {
+    return this.userRepository.findOne({ where: { email } });
+  }
+}
+```
+
+### Auth Helper
+```typescript
+export class AuthHelper {
+  constructor(private app: INestApplication) {}
+
+  async getAuthToken(user?: User): Promise<string> {
+    if (!user) {
+      user = await this.createTestUser();
+    }
+
+    const authService = this.app.get<AuthService>(AuthService);
+    const loginResult = await authService.login({
+      email: user.email,
+      password: 'test-password',
+    });
+
+    return loginResult.accessToken;
+  }
+
+  private async createTestUser(): Promise<User> {
+    const userRepository = this.app.get<Repository<User>>(getRepositoryToken(User));
+    const userData = UserFixtures.createUser({
+      password: await bcrypt.hash('test-password', 10),
+    });
+    
+    const user = userRepository.create(userData);
+    return userRepository.save(user);
+  }
+}
+```
+
+## Performance Testing
+
+### Load Testing with Jest
+```typescript
+describe('Performance Tests', () => {
+  let app: INestApplication;
+  let usersService: UsersService;
+
+  beforeAll(async () => {
+    // Setup test app
+  });
+
+  describe('findAll performance', () => {
+    it('should handle 1000 concurrent requests', async () => {
+      // Arrange
+      const concurrentRequests = 1000;
+      const requests = Array.from({ length: concurrentRequests }, () =>
+        usersService.findAll({ page: 1, limit: 10 }),
+      );
+
+      // Act
+      const startTime = Date.now();
+      await Promise.all(requests);
+      const endTime = Date.now();
+
+      // Assert
+      const duration = endTime - startTime;
+      expect(duration).toBeLessThan(5000); // Should complete within 5 seconds
+    });
+
+    it('should maintain performance with large dataset', async () => {
+      // Arrange
+      await databaseHelper.createUserList(10000);
+
+      // Act
+      const startTime = Date.now();
+      await usersService.findAll({ page: 1, limit: 100 });
+      const endTime = Date.now();
+
+      // Assert
+      const duration = endTime - startTime;
+      expect(duration).toBeLessThan(1000); // Should complete within 1 second
+    });
+  });
+});
+```
+
+### Test Anti-Patterns to Avoid
+
+#### Unit Testing Anti-Patterns
+- Don't test implementation details, test behavior
+- Don't create tests that depend on other tests
+- Don't use real external services in unit tests
+- Don't skip mocking of dependencies
+- Don't write tests that are too complex
+- Don't ignore test isolation and cleanup
+- Don't skip edge cases and error scenarios
+
+#### Integration Testing Anti-Patterns
+- Don't use production database for testing
+- Don't skip database cleanup between tests
+- Don't test too many layers at once
+- Don't ignore transaction rollback in tests
+- Don't skip testing of database constraints
+- Don't ignore performance impact of integration tests
+
+#### E2E Testing Anti-Patterns
+- Don't test every possible scenario in E2E tests
+- Don't skip authentication and authorization testing
+- Don't ignore proper test data setup and cleanup
+- Don't use hardcoded values in E2E tests
+- Don't skip testing of error responses
+- Don't ignore proper HTTP status code validation
+
+#### General Testing Anti-Patterns
+- Don't skip writing tests for new features
+- Don't ignore test coverage requirements
+- Don't write tests that are hard to understand
+- Don't skip testing of async operations
+- Don't ignore proper error handling in tests
+- Don't skip performance and load testing
+- Don't ignore continuous integration test failures
