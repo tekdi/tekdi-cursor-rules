@@ -15,7 +15,9 @@ This repository contains standardized cursor rules for Tekdi projects, organized
 1. **Download the script:**
    ```bash
    wget https://raw.githubusercontent.com/tekdi/tekdi-cursor-rules/main/copy-cursor-rules.sh
-   # or
+   ```
+   or
+   ```bash
    curl -O https://raw.githubusercontent.com/tekdi/tekdi-cursor-rules/main/copy-cursor-rules.sh
    ```
 
