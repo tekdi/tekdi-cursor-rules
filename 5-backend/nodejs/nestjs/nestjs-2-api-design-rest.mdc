@@ -81,23 +81,46 @@ export class UsersController {
 
   @Get()
   @ApiOperation({ summary: 'Get all users' })
-  @ApiResponse({ status: 200, type: PaginatedUserResponse })
-  async findAll(@Query() paginationDto: PaginationDto): Promise<PaginatedResponse<UserResponseDto>> {
-    return this.usersService.findAll(paginationDto);
+  @ApiResponse({ status: 200, type: ApiResponse<PaginatedResponse<UserResponseDto>> })
+  async findAll(@Query() paginationDto: PaginationDto): Promise<ApiResponse<PaginatedResponse<UserResponseDto>>> {
+    const data = await this.usersService.findAll(paginationDto);
+    return {
+      success: true,
+      data,
+      metadata: {
+        timestamp: new Date().toISOString(),
+        // requestId, version, etc. can be added here
+      },
+    };
   }
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create a new user' })
-  @ApiResponse({ status: 201, type: UserResponseDto })
-  async create(@Body() createUserDto: CreateUserDto): Promise<UserResponseDto> {
-    return this.usersService.create(createUserDto);
+  @ApiResponse({ status: 201, type: ApiResponse<UserResponseDto> })
+  async create(@Body() createUserDto: CreateUserDto): Promise<ApiResponse<UserResponseDto>> {
+    const data = await this.usersService.create(createUserDto);
+    return {
+      success: true,
+      data,
+      metadata: {
+        timestamp: new Date().toISOString(),
+      },
+    };
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get user by ID' })
-  async findOne(@Param('id') id: string): Promise<UserResponseDto> {
-    return this.usersService.findById(id);
+  @ApiResponse({ status: 200, type: ApiResponse<UserResponseDto> })
+  async findOne(@Param('id') id: string): Promise<ApiResponse<UserResponseDto>> {
+    const data = await this.usersService.findById(id);
+    return {
+      success: true,
+      data,
+      metadata: {
+        timestamp: new Date().toISOString(),
+      },
+    };
   }
 }
 ```
@@ -106,9 +129,12 @@ export class UsersController {
 
 ### Consistent Response Format Rules
 - Use standardized response structure across all endpoints
+- Always wrap all successful responses in the `ApiResponse<T>` structure for consistency, including paginated and single resource responses.
+- Use `ApiErrorResponse` for all error responses.
 - Include success status, data, and metadata in responses
 - Implement proper error response format
 - Use correlation IDs for request tracking
+- Only return plain DTOs internally within the service layer; controllers must always wrap responses before sending to the client.
 
 ```typescript
 // Success response structure
@@ -144,6 +170,7 @@ interface ApiErrorResponse {
 - Use consistent pagination parameters across endpoints
 - Provide navigation information (hasNext, hasPrevious)
 - Include total count and page information
+- Paginated responses should be wrapped in `ApiResponse<PaginatedResponse<T>>`.
 
 ```typescript
 interface PaginatedResponse<T> {
@@ -157,6 +184,27 @@ interface PaginatedResponse<T> {
     hasPrevious: boolean;
   };
 }
+
+// Example paginated API response
+const response: ApiResponse<PaginatedResponse<UserResponseDto>> = {
+  success: true,
+  data: {
+    items: [/* ... */],
+    pagination: {
+      page: 1,
+      limit: 10,
+      total: 100,
+      totalPages: 10,
+      hasNext: true,
+      hasPrevious: false,
+    },
+  },
+  metadata: {
+    timestamp: new Date().toISOString(),
+    requestId: 'abc-123',
+    version: 'v1',
+  },
+};
 ```
 
 ## Request Validation with DTOs
@@ -296,13 +344,20 @@ async findAll(
   @Query('search') search?: string,
   @Query('createdAfter') createdAfter?: Date,
   @Query('createdBefore') createdBefore?: Date,
-): Promise<UserResponseDto[]> {
-  return this.usersService.findAll({
+): Promise<ApiResponse<UserResponseDto[]>> {
+  const data = await this.usersService.findAll({
     status,
     search,
     createdAfter,
     createdBefore,
   });
+  return {
+    success: true,
+    data,
+    metadata: {
+      timestamp: new Date().toISOString(),
+    },
+  };
 }
 ```
 
@@ -384,8 +439,15 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 @Get()
 @UseInterceptors(CacheInterceptor)
 @Header('Cache-Control', 'public, max-age=300')
-async findAll(): Promise<UserResponseDto[]> {
-  return this.usersService.findAll();
+async findAll(): Promise<ApiResponse<UserResponseDto[]>> {
+  const data = await this.usersService.findAll();
+  return {
+    success: true,
+    data,
+    metadata: {
+      timestamp: new Date().toISOString(),
+    },
+  };
 }
 ```
 
@@ -400,9 +462,16 @@ async findAll(): Promise<UserResponseDto[]> {
 async findOne(
   @Param('id') id: string,
   @Query('fields') fields?: string,
-): Promise<Partial<UserResponseDto>> {
+): Promise<ApiResponse<Partial<UserResponseDto>>> {
   const selectedFields = fields?.split(',') || [];
-  return this.usersService.findOne(id, selectedFields);
+  const data = await this.usersService.findOne(id, selectedFields);
+  return {
+    success: true,
+    data,
+    metadata: {
+      timestamp: new Date().toISOString(),
+    },
+  };
 }
 ```
 
@@ -434,11 +503,18 @@ async findOne(
     }
   }
 })
-@ApiResponse({ status: 201, description: 'User created successfully', type: UserResponseDto })
+@ApiResponse({ status: 201, description: 'User created successfully', type: ApiResponse<UserResponseDto> })
 @ApiResponse({ status: 400, description: 'Invalid input data' })
 @ApiResponse({ status: 409, description: 'User already exists' })
-async create(@Body() createUserDto: CreateUserDto): Promise<UserResponseDto> {
-  return this.usersService.create(createUserDto);
+async create(@Body() createUserDto: CreateUserDto): Promise<ApiResponse<UserResponseDto>> {
+  const data = await this.usersService.create(createUserDto);
+  return {
+    success: true,
+    data,
+    metadata: {
+      timestamp: new Date().toISOString(),
+    },
+  };
 }
 ```
 

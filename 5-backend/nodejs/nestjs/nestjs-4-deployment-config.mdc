@@ -24,6 +24,8 @@ alwaysApply: false
 
 ```typescript
 // config/app.config.ts
+import { registerAs } from '@nestjs/config';
+
 export const appConfig = registerAs('app', () => ({
   nodeEnv: process.env.NODE_ENV || 'development',
   port: parseInt(process.env.PORT, 10) || 3000,
@@ -250,6 +252,8 @@ export class HealthController {
 ### Logging Configuration
 ```typescript
 // logging/logger.service.ts
+import * as winston from 'winston';
+
 @Injectable()
 export class LoggerService extends Logger {
   private winston: winston.Logger;
