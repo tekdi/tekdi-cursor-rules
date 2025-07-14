@@ -47,6 +47,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 - Handle authentication failures gracefully
 
 ```typescript
+import * as bcrypt from 'bcrypt';
 @Injectable()
 export class AuthService {
   constructor(
@@ -72,6 +73,12 @@ export class AuthService {
     }
     return user;
   }
+
+  // Safely transform user object for response (exclude sensitive fields)
+  private transformUserResponse(user: User): Partial<User> {
+    const { password, ...safeUser } = user;
+    return safeUser;
+  }
 }
 ```
 
@@ -83,8 +90,11 @@ export class AuthService {
 - Log authorization failures with relevant context
 
 ```typescript
+import { Logger } from '@nestjs/common';
 @Injectable()
 export class JwtAuthGuard extends AuthGuard('jwt') {
+  private readonly logger = new Logger(JwtAuthGuard.name);
+
   constructor(private reflector: Reflector) {
     super();
   }
@@ -102,9 +112,9 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     return super.canActivate(context);
   }
 
-  handleRequest(err: any, user: any, info: any, context: ExecutionContext) {
+  handleRequest(err: any, user: any, info: any, host: ArgumentsHost) {
+    const request = host.switchToHttp().getRequest();
     if (err || !user) {
-      const request = context.switchToHttp().getRequest();
       this.logger.warn(`Unauthorized access attempt: ${request.url}`);
       throw err || new UnauthorizedException('Invalid or expired token');
     }
@@ -115,9 +125,13 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
 
 ### Role-Based Access Control (RBAC)
 ```typescript
+import { Logger } from '@nestjs/common';
 @Injectable()
 export class RolesGuard implements CanActivate {
-  constructor(private reflector: Reflector) {}
+  private readonly logger: Logger;
+  constructor(private reflector: Reflector) {
+    this.logger = new Logger(RolesGuard.name);
+  }
 
   canActivate(context: ExecutionContext): boolean {
     const requiredRoles = this.reflector.getAllAndOverride<Role[]>(ROLES_KEY, [

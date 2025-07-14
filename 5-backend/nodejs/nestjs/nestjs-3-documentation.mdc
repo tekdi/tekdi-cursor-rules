@@ -89,23 +89,27 @@ export class UsersController {
     status: 200, 
     description: 'Successfully retrieved users',
     type: PaginatedUserResponse,
-    example: {
-      items: [
-        {
-          id: 'uuid',
-          email: 'user@example.com',
-          firstName: 'John',
-          lastName: 'Doe',
-          createdAt: '2023-01-01T00:00:00.000Z'
+    content: {
+      'application/json': {
+        example: {
+          items: [
+            {
+              id: 'uuid',
+              email: 'user@example.com',
+              firstName: 'John',
+              lastName: 'Doe',
+              createdAt: '2023-01-01T00:00:00.000Z'
+            }
+          ],
+          pagination: {
+            page: 1,
+            limit: 10,
+            total: 100,
+            totalPages: 10,
+            hasNext: true,
+            hasPrevious: false
+          }
         }
-      ],
-      pagination: {
-        page: 1,
-        limit: 10,
-        total: 100,
-        totalPages: 10,
-        hasNext: true,
-        hasPrevious: false
       }
     }
   })
