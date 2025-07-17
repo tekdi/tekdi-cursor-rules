@@ -1,0 +1,101 @@
+---
+description: USE WHEN securing frontend applications that protect both your users and your systems from common web security threats protect your applications and users from common security vulnerabilities
+globs: ["**/*"]
+alwaysApply: false
+---
+
+# Frontend Security Rules
+
+## Input Security and Data Validation
+
+### User Input Sanitization
+- Sanitize all user input before rendering or processing
+- Escape HTML entities in dynamic content to prevent XSS
+- Validate input on both client and server sides
+- Use allowlists instead of blocklists for input validation
+- Never trust data from external sources without validation
+
+### XSS Prevention
+- Use framework-provided safe rendering methods
+- Avoid innerHTML with user-generated content
+- Implement Content Security Policy (CSP) headers
+- Encode data based on context (HTML, URL, JavaScript)
+- Use template engines with automatic escaping
+
+### Form Security
+- Implement proper input validation
+- Use HTTPS for all form submissions
+- Validate file uploads thoroughly
+- Implement rate limiting for form submissions
+- Use anti-automation measures when necessary
+
+## Authentication and Session Security
+
+### Secure Token Handling
+- Store authentication tokens securely (httpOnly cookies preferred)
+- Never store sensitive tokens in localStorage or sessionStorage
+- Implement proper token expiration and refresh
+- Use secure, same-site cookie attributes
+- Clear tokens on logout and session expiration
+
+### Session Management
+- Handle session expiration gracefully
+- Implement proper logout functionality
+- Clear sensitive data on session end
+- Log session events for debugging concurrent access issues
+- Handle browser tab/window closing
+
+## API Security
+
+### Secure API Communication
+- Use HTTPS for all API communications
+- Implement proper error handling without information disclosure
+- Validate API responses before processing
+- Handle API rate limiting gracefully
+- Never expose API keys or sensitive configuration
+
+### Data Protection
+- Encrypt sensitive data before storage
+- Use secure communication protocols
+- Implement proper CORS policies
+- Validate all data from external sources
+- Handle PII (Personally Identifiable Information) carefully
+
+## Client-Side Security
+
+### Content Security Policy
+- Implement strict CSP headers
+- Use nonce or hash-based CSP for inline scripts
+- Restrict resource loading to trusted domains
+- Implement CSP violation reporting with event listeners
+- Regularly review and update CSP rules
+
+### Dependency Security
+- Regularly audit dependencies for vulnerabilities
+- Use dependency scanning tools
+- Keep dependencies updated
+- Remove unused dependencies
+- Use lockfiles to ensure consistent installs
+
+### Error Handling and Information Disclosure
+- Handle errors gracefully without exposing system information
+- Log errors securely without sensitive data
+- Provide user-friendly error messages
+- Implement proper fallback mechanisms
+- Create error logging utilities to track security-related error patterns
+
+## Third-Party Integration Security
+
+### External Service Integration
+- Validate all third-party scripts before loading
+- Use Subresource Integrity (SRI) for external resources
+- Implement sandboxing for untrusted content
+- Create error handlers to detect third-party service failures
+- Have fallback plans for service failures
+
+### Data Validation from External Sources
+- Never trust external data without validation
+- Implement schema validation for API responses
+- Sanitize data from external sources
+- Use type checking for received data
+- Implement timeouts for external requests

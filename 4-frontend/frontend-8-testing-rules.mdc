@@ -1,0 +1,86 @@
+---
+description: USE WHEN writing test for ensuring testing and quality principles to build reliable, maintainable frontend applications with comprehensive test coverage and robust error handling
+globs: ["**/*"]
+alwaysApply: false
+---
+
+# Frontend Testing & Quality Rules
+
+## Testing Strategy and Organization
+
+### Test Pyramid Structure
+- Write more unit tests than integration tests, more integration than e2e tests
+- Focus unit tests on business logic and pure functions
+- Use integration tests for component interactions
+- Reserve e2e tests for critical user flows only
+- Keep tests focused and isolated
+
+### Test Organization and Structure
+- Co-locate tests with source code
+- Use descriptive test names that explain behavior
+- Group related tests with describe blocks
+- Follow Arrange-Act-Assert pattern
+- Keep test setup minimal and focused
+
+## Component Testing Best Practices
+
+### Testing User Interactions
+- Test components from user perspective
+- Focus on behavior rather than implementation
+- Use accessible queries (getByRole, getByLabelText)
+- Test user interactions and state changes
+- Verify component outputs and side effects
+
+### Mocking and Test Isolation
+- Mock external dependencies appropriately
+- Keep mocks simple and focused
+- Reset mocks between tests
+- Mock at the right level (module, function, or service)
+- Use dependency injection for easier testing
+
+## Integration Testing
+
+### Component Integration
+- Test how components work together
+- Verify data flow between parent and child components
+- Test context providers and consumers
+- Test routing and navigation flows
+- Validate form submissions end-to-end
+
+### API Integration Testing
+- Test API integration with real or mocked endpoints
+- Verify request/response handling
+- Test error scenarios and edge cases
+- Validate data transformation
+- Test loading and error states
+
+## Code Quality Standards
+
+### Code Organization and Structure
+- Use consistent file and folder naming conventions
+- Group related functionality together
+- Keep functions small and focused (single responsibility)
+- Use meaningful variable and function names
+- Implement proper error handling
+
+### Type Safety and Validation
+- Use type systems when available (TypeScript, PropTypes)
+- Validate function parameters and return values
+- Document expected data structures
+- Implement runtime type checking for critical paths
+- Use schema validation for complex data
+
+### Error Handling and Debugging
+
+### Comprehensive Error Handling
+- Implement error boundaries for component errors
+- Handle async operation failures gracefully
+- Provide meaningful error messages
+- Log errors with sufficient context for debugging
+- Implement fallback mechanisms
+
+### Debugging and Development Tools
+- Implement helpful development warnings
+- Add debug logging for complex operations
+- Use meaningful variable names and comments
+- Create debugging utilities for testing

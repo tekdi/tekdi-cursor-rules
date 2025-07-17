@@ -1,0 +1,127 @@
+---
+description: USE WHEN optimizing for speed, efficiency, and user experience while maintaining the performance optimization principles
+globs: ["**/*"]
+alwaysApply: false
+---
+
+# Frontend Performance Optimization Rules
+
+## Bundle and Asset Optimization
+
+### Code Splitting Strategies
+- Split code by routes and features to reduce initial bundle size
+- Use dynamic imports for components not needed immediately
+- Create separate chunks for vendor libraries and dependencies
+- Implement lazy loading for conditional features and routes
+- Load components on demand based on user interactions
+
+### Tree Shaking and Dead Code Elimination
+- Import only specific functions from libraries, avoid default imports
+- Use ES modules for better tree shaking support
+- Remove unused code and dead branches regularly
+- Configure build tools for optimal tree shaking
+- Avoid importing entire utility libraries when only using specific functions
+
+### Asset Optimization
+- Compress and optimize images before bundling
+- Use modern image formats (WebP, AVIF) with fallbacks
+- Implement responsive images with appropriate srcset attributes
+- Use CSS sprites or icon fonts for small graphics
+- Minimize and compress CSS and JavaScript files
+
+## Runtime Performance Optimization
+
+### Rendering Optimization
+- Minimize component re-renders through proper state management
+- Use memoization strategically for expensive computations
+- Implement proper key props for list rendering
+- Avoid creating objects and functions during render
+- Use virtualization for large lists and tables
+
+### Memory Management
+- Remove object references when components unmount
+- Use weak references for large objects when appropriate
+- Use Performance API and browser dev tools to profile memory usage
+
+### Efficient DOM Operations
+- Batch DOM updates to minimize reflows and repaints
+- Use DocumentFragment for multiple DOM insertions
+- Avoid frequent style changes that trigger layout
+- Implement viewport-based rendering for off-screen content
+
+## Network and Loading Optimization
+
+### Resource Loading Strategies
+- Preload critical resources in document head
+- Use resource hints (prefetch, preconnect, dns-prefetch)
+- Implement progressive enhancement patterns
+- Optimize critical rendering path
+- Use service workers for offline support and caching
+
+### Caching Strategies
+- Implement appropriate browser caching headers
+- Use service workers for application caching
+- Cache API responses with proper invalidation
+- Version static assets for cache busting
+- Implement stale-while-revalidate patterns
+
+### Request Optimization
+- Batch multiple API calls when possible
+- Implement request deduplication for concurrent requests
+- Use efficient data fetching patterns (GraphQL, efficient REST)
+- Compress request and response payloads
+- Implement proper error handling and retry logic
+
+## Initial Load Performance
+
+### Critical CSS and Above-the-fold Optimization
+- Inline critical CSS for above-the-fold content
+- Defer non-critical stylesheets
+- Remove unused CSS rules and declarations
+- Minimize CSS file sizes through optimization
+- Use CSS containment for isolated component styles
+
+### JavaScript Loading Optimization
+- Defer non-critical scripts until after page load
+- Use async attribute for independent scripts
+- Minimize parser-blocking scripts
+- Load third-party scripts efficiently
+- Implement script loading strategies based on user interaction
+
+## User Experience Performance
+
+### Perceived Performance
+- Show content skeletons during loading
+- Implement optimistic UI updates
+- Provide immediate feedback for user actions
+- Use progressive image loading
+
+### Smooth Interactions
+- Keep main thread free for user input
+- Respond to user actions within 100ms
+- Implement touch feedback immediately
+- Debounce expensive operations triggered by user input
+
+## Performance Monitoring
+
+### Performance Budgets
+- Set and enforce bundle size budgets in your build configuration
+- Write code to track Core Web Vitals (LCP, FID, CLS) locally during development
+- Use webpack-bundle-analyzer or similar tools to monitor bundle size
+- Create performance budgets as build-time constraints
+- Log performance metrics for debugging
+
+### Development Performance Practices
+- Profile performance regularly during development using browser dev tools
+- Use Performance API to measure and log component render times
+- Create build scripts that track bundle size changes
+- Document performance optimizations in code comments
+
+## Performance Testing
+
+### Performance Test Implementation
+- Write performance tests that fail when budgets are exceeded
+- Write tests that measure component render times
+- Test loading performance with realistic data volumes
+- Include memory usage tests for large datasets
+- Profile performance during test execution

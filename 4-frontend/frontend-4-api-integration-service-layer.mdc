@@ -1,0 +1,34 @@
+---
+description: USE WHEN when intergrating APIs
+globs: ["**/*"]
+alwaysApply: false
+---
+
+# API Integration and Service Layer
+
+### Service Abstraction
+- Create abstraction layer for all API interactions
+- Handle errors at service boundaries, not in components
+- Transform API responses to match application models
+- Implement consistent request/response patterns
+- Use proper HTTP methods and status code handling
+
+### Loading State Management
+- Track loading state for all async operations
+- Handle concurrent requests appropriately
+- Show appropriate UI feedback during loading
+- Implement request cancellation for cleanup
+- Use loading state to prevent duplicate requests
+
+### Error Handling Strategies
+- Catch and handle errors at appropriate levels
+- Provide meaningful error messages to users
+- Implement retry mechanisms for transient failures
+- Log errors with sufficient context for debugging
+- Handle network failures gracefully
+
+### Subscription Lifecycle
+- Unsubscribe from data sources on component cleanup
+- Prevent memory leaks from active subscriptions
+- Implement proper cleanup in lifecycle methods
+- Handle subscription errors gracefully
