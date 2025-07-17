@@ -1,0 +1,125 @@
+---
+description: USE WHEN creating inclusive, accessible web applications to ensure application work for all users, including those with disabilities
+globs: ["**/*"]
+alwaysApply: false
+---
+
+# Frontend Accessibility Rules
+
+## Semantic HTML Foundation
+
+### Proper Element Usage
+- Use HTML elements for their intended semantic purpose
+- Choose elements based on meaning, not appearance
+- Structure documents with proper heading hierarchy (h1-h6)
+- Use lists (ul, ol, dl) for grouped items
+- Implement landmark elements for navigation structure
+
+### Heading Hierarchy
+- Start with h1 for main page title
+- Use heading levels sequentially without skipping
+- Don't use headings for styling purposes
+- Ensure heading text accurately describes section content
+- Use aria-labelledby to connect headings with sections
+
+### List Structures
+- Use ordered lists (ol) for sequential items
+- Use unordered lists (ul) for grouped items
+- Use description lists (dl) for term-definition pairs
+- Avoid using list markup for non-list content
+- Include proper list item structure
+
+## ARIA Implementation
+
+### Labels and Descriptions
+- Add aria-label for elements without visible text
+- Use aria-labelledby to reference visible labels
+- Implement aria-describedby for additional context
+- Avoid redundant ARIA on elements with semantic labels
+- Keep ARIA labels concise and descriptive
+
+### Roles and States
+- Use appropriate ARIA roles to enhance semantics
+- Implement dynamic state changes (aria-expanded, aria-checked)
+- Update ARIA states when UI state changes
+- Use aria-hidden to hide decorative elements
+- Implement proper live regions for dynamic content
+
+### Live Regions
+- Use aria-live for content that updates dynamically
+- Choose appropriate politeness levels (polite, assertive)
+- Implement aria-atomic for complete message announcements
+- Use role="status" for status updates
+- Handle loading states with screen reader announcements
+
+## Keyboard Navigation
+
+### Focus Management
+- Ensure all interactive elements are keyboard accessible
+- Implement logical tab order through the interface
+- Provide visible focus indicators that meet contrast requirements
+- Manage focus for dynamic content (modals, dropdowns)
+- Use skip links for main content navigation
+
+### Keyboard Interaction Patterns
+- Support arrow key navigation for menus and lists
+- Implement Enter and Space for button activation
+- Use Escape key to close modals and menus
+- Provide keyboard shortcuts for common actions
+- Handle Home/End keys for list navigation
+
+### Skip Links and Shortcuts
+- Provide skip links to main content and navigation
+- Implement keyboard shortcuts for power users
+- Make skip links visible on focus
+- Include access key attributes where appropriate
+- Document keyboard shortcuts for users
+
+## Visual Accessibility
+
+### Color and Contrast
+- Meet WCAG 2.1 AA contrast ratios (4.5:1 for normal text, 3:1 for large text)
+- Don't convey information through color alone
+- Test with color blindness simulators
+- Support system color preferences (dark/light mode)
+- Use patterns and textures alongside color
+
+### Typography and Spacing
+- Use relative units for font sizes (rem, em)
+- Ensure text is readable at 200% zoom
+- Maintain adequate line height (1.4-1.6)
+- Provide sufficient spacing between interactive elements
+- Support user font size preferences
+
+## Accessible Form Interactions
+
+### Advanced Form Accessibility
+- Use role="alert" for error announcements
+- Implement proper live region announcements for form state changes
+- Support keyboard navigation through form elements
+- Implement real-time validation feedback with screen reader support
+
+## Component-Specific Accessibility
+
+### Modal and Dialog Patterns
+- Trap focus within modal when open
+- Return focus to trigger element when closing
+- Use aria-modal and role="dialog"
+- Implement Escape key to close
+- Provide accessible close button
+
+### Table Accessibility
+- Use proper table markup with headers
+- Implement scope attributes for complex tables
+- Provide table captions and summaries
+- Make tables responsive without losing accessibility
+- Use aria-sort for sortable columns
+
+## Testing and Validation
+
+### Accessibility Testing
+- Test with keyboard navigation only
+- Use screen reader software for testing
+- Validate markup with accessibility checkers
+- Test color contrast ratios
+- Verify ARIA implementation

@@ -1,0 +1,70 @@
+---
+description: USE WHEN when handling application state and data flow for efficient, predictable data and state management
+globs: ["**/*"]
+alwaysApply: false
+---
+
+# Frontend Data & State Management Rules
+
+## State Management Principles
+
+### State Ownership and Boundaries
+- Keep state as close to its usage as possible
+- Lift state up only when multiple components genuinely need access
+- Avoid prop drilling beyond 2-3 component levels
+- Clearly define state ownership at component boundaries
+- Use context or state management libraries for deeply nested sharing
+
+### Immutability Patterns
+- Treat all state as immutable - never mutate existing state objects
+- Use spread operators for shallow object/array updates
+- Implement pure update functions for state transformations
+- Use immutability helper libraries for complex nested updates
+- Return new references when state changes
+
+### State Types and Separation
+- Distinguish between UI state and business/domain state
+- Separate local component state from global application state
+- Handle server state differently from client state
+- Compute derived state rather than storing it
+- Keep state structure flat to avoid nested update complexity
+
+## Data Flow Architecture
+
+### Unidirectional Data Flow
+- Data flows down through props/attributes
+- Events and actions flow up through callbacks
+- Avoid two-way data binding patterns when possible
+- Make data flow explicit and traceable
+- Use event emitters or observable patterns for complex communications
+
+### Action Patterns
+- Use descriptive action names that explain intent
+- Keep actions pure and predictable
+- Separate action creators from business logic
+- Handle async operations with consistent patterns
+- Implement proper error handling for actions
+
+## State Persistence
+
+### Local Storage Management
+- Persist critical user state across browser sessions
+- Serialize and deserialize state properly
+- Handle storage quota limits gracefully
+- Sync state across browser tabs when necessary
+- Clear sensitive data appropriately
+
+### Session Management
+- Clear sensitive data on logout
+- Handle session expiration gracefully
+- Restore appropriate state after page refresh
+- Implement proper state hydration
+- Handle authentication state changes
+
+## Data Validation
+
+### State Integrity
+- Ensure state transitions are valid
+- Prevent invalid state combinations
+- Log state violations for debugging
+- Implement state invariants

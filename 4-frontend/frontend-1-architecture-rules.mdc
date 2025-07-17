@@ -1,0 +1,129 @@
+---
+description: USE WHEN designing frontend architecture, implementing design patterns, organizing code structure, or discussing architectural decisions for creating maintainable, scalable component architectures
+globs: ["**/*"]
+alwaysApply: false
+---
+
+# Frontend Architecture Rules
+
+## SOLID Principles in Components
+
+### Single Responsibility Principle
+- Each component must have ONE clear, well-defined purpose
+- Split components that handle multiple concerns into smaller, focused units
+- Name components based on their single responsibility (Button, Modal, UserCard)
+- If component description uses "AND", consider splitting it
+- Keep business logic separate from UI rendering logic
+
+### Open/Closed Principle
+- Design components for extension without modification
+- Use composition patterns over inheritance
+- Leverage props/attributes for configuration
+- Implement plugin/slot patterns for extensibility
+- Use CSS custom properties for style customization
+
+### Dependency Inversion
+- Depend on abstractions, not concrete implementations
+- Inject dependencies through props or context
+- Abstract API calls behind service interfaces
+- Use dependency injection for external services
+
+## Component Structure & Organization
+
+### File Organization
+- One component per file with descriptive filename
+- Co-locate related files (styles, tests, types) in component folders
+- Use consistent naming conventions across the project
+- Group related components in feature/domain folders
+- Keep shared/common components in dedicated directory
+
+### Component Interface Design
+- Define clear, minimal prop interfaces
+- Use descriptive, semantic property names
+- Distinguish between required and optional props
+- Provide sensible defaults for optional props
+- Document complex prop relationships
+
+### Composition Patterns
+- Favor composition over inheritance for component reuse
+- Use compound component patterns for complex UI
+- Implement render props for behavior sharing
+- Create higher-order components for cross-cutting concerns
+- Use slots/children for content injection
+
+## Component Data Flow
+
+### Component Communication
+- Pass data down through props and attributes
+- Use callback functions for upward communication
+- Implement clear interfaces between parent and child components
+- Avoid deep prop drilling through component hierarchies
+- Use context or state management patterns for cross-cutting data
+
+## Component Lifecycle & Side Effects
+
+### Effect Management
+- Handle side effects in appropriate lifecycle hooks
+- Clean up subscriptions and event listeners
+- Avoid memory leaks from uncleaned references
+- Implement proper error boundaries
+- Use cancellation tokens for async operations
+
+### Event Handling
+- Use consistent naming for event handlers (onSubmit, handleClick)
+- Handle events at the appropriate component level
+- Prevent event bubbling when necessary
+- Implement proper keyboard event handling
+- Clean up event listeners on component unmount
+
+## Component Optimization
+
+### Component Design for Performance
+- Design components with minimal re-render impact
+- Use proper component boundaries to isolate updates
+- Implement efficient component composition patterns
+- Design reusable components with performance in mind
+
+## Error Handling
+
+### Component Error Boundaries
+- Implement error boundaries at strategic component levels
+- Provide fallback UI for component errors
+- Log errors with sufficient context for debugging
+- Allow graceful error recovery when possible
+- Avoid cascading failures through proper error isolation
+
+### Input Validation
+- Validate props at component boundaries
+- Use type systems for compile-time checking
+- Implement runtime validation for external data
+- Provide clear error messages for invalid inputs
+- Handle edge cases gracefully
+- Validate data at all entry points
+- Use schema validation for complex data structures
+- Provide immediate feedback on invalid input
+- Sanitize user input before processing
+- Implement client-side validation as UX enhancement, not security
+
+## Component Structure Standards
+
+### HTML Structure
+- Build components with proper HTML structure foundation
+- Follow semantic markup principles in component templates
+- Ensure components generate accessible HTML output
+
+## Testing Architecture
+
+### Testable Design
+- Design components with testing in mind
+- Use dependency injection for external services
+- Keep business logic in pure functions
+- Avoid testing implementation details
+- Focus on component behavior and outputs
+
+### Test Organization
+- Co-locate tests with components
+- Use descriptive test names that explain behavior
+- Group related tests logically
+- Test component integration, not just units
+- Mock external dependencies appropriately
