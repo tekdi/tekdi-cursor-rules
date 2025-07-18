@@ -72,13 +72,12 @@ export const useSanitizedInput = (
         ALLOWED_ATTR: [] 
       });
     } else {
-      // Escape HTML entities for plain text input (safest default)
-      sanitized = newValue
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#x27;');
+      // Escape HTML entities for plain text input using DOMPurify (safest default)
+      sanitized = DOMPurify.sanitize(newValue, { 
+        ALLOWED_TAGS: [], 
+        ALLOWED_ATTR: [],
+        KEEP_CONTENT: true
+      });
     }
     
     setValue(sanitized);
@@ -226,19 +225,16 @@ interface AuthState {
 class SecureTokenStorage {
   private static readonly ACCESS_TOKEN_KEY = 'access_token';
 
-  static setTokens(accessToken: string, refreshToken: string) {
+  static setTokens(accessToken: string) {
     // Store access token in sessionStorage (cleared on tab close)
     sessionStorage.setItem(this.ACCESS_TOKEN_KEY, accessToken);
     
-    // WARNING: refresh token should NOT be stored client-side for security
-    // Instead, refresh tokens should be set by the server via Set-Cookie header
+    // NOTE: Refresh tokens should NEVER be handled client-side for security
+    // They are managed exclusively by the server via Set-Cookie header
     // with HttpOnly and Secure flags to prevent XSS exposure
     // 
     // Example server response header:
     // Set-Cookie: refresh_token=abc123; HttpOnly; Secure; SameSite=Strict; Path=/
-    //
-    // The client should never handle refresh tokens directly
-    console.warn('Refresh token should be set by server via HttpOnly cookie, not client-side');
   }
 
   static getAccessToken(): string | null {
@@ -276,8 +272,18 @@ export const useAuth = () => {
       });
 
       if (response.ok) {
-        const { accessToken, refreshToken, user } = await response.json();
-        SecureTokenStorage.setTokens(accessToken, refreshToken);
+        if (response.status === 204) {
+          // No content response - handle appropriately
+          throw new Error('Login succeeded but no user data returned');
+        }
+        
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          throw new Error('Login response is not JSON format');
+        }
+        
+        const { accessToken, user } = await response.json();
+        SecureTokenStorage.setTokens(accessToken);
         
         setAuthState({
           user,
@@ -286,8 +292,27 @@ export const useAuth = () => {
           isLoading: false
         });
       } else {
-        const error = await response.json();
-        throw new Error(error.message);
+        let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+        
+        try {
+          // Safely attempt to parse error response as JSON
+          const contentType = response.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            const errorData = await response.json();
+            errorMessage = errorData.message || errorData.error || errorMessage;
+          } else {
+            // Try to get text response for non-JSON errors
+            const errorText = await response.text();
+            if (errorText.trim()) {
+              errorMessage = errorText;
+            }
+          }
+        } catch (parseError) {
+          // If parsing fails, keep the original HTTP status message
+          console.warn('Failed to parse error response:', parseError);
+        }
+        
+        throw new Error(errorMessage);
       }
     } catch (error) {
       setAuthState({
@@ -381,6 +406,22 @@ export const useCSRFToken = () => {
         const response = await fetch('/api/csrf-token', {
           credentials: 'include'
         });
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch CSRF token: ${response.status} ${response.statusText}`);
+        }
+        
+        if (response.status === 204) {
+          // No content response - CSRF token might be in headers or cookies
+          setCSRFToken(null);
+          return;
+        }
+        
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          throw new Error('CSRF token response is not JSON format');
+        }
+        
         const { token } = await response.json();
         setCSRFToken(token);
       } catch (error) {
@@ -568,6 +609,18 @@ class SecureApiClient {
       throw new Error(errorMessage);
     }
 
+    // Handle successful responses safely
+    if (response.status === 204) {
+      // No Content response
+      return {} as T;
+    }
+    
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      // Non-JSON response - return empty object or throw based on use case
+      throw new Error(`Expected JSON response but got ${contentType || 'unknown content type'}`);
+    }
+    
     return response.json();
   }
 

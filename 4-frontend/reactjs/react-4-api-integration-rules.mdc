@@ -48,6 +48,20 @@ class UserService {
     return apiResponse.data;
   }
 
+  async getUsersPaginated(page: number = 0, limit: number = 20): Promise<User[]> {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      limit: limit.toString()
+    });
+    
+    const response = await fetch(`${this.baseURL}?${params}`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch paginated users: ${response.statusText}`);
+    }
+    const apiResponse: ApiResponse<User[]> = await response.json();
+    return apiResponse.data;
+  }
+
   async getUser(id: string): Promise<User> {
     const response = await fetch(`${this.baseURL}/${id}`);
     if (!response.ok) {
@@ -492,7 +506,7 @@ export const useInfiniteUsers = (pageSize: number = 20) => {
   return useInfiniteQuery({
     queryKey: ['users', 'infinite'],
     queryFn: ({ pageParam = 0 }) =>
-      userService.getUsers({ page: pageParam, limit: pageSize }),
+      userService.getUsersPaginated(pageParam, pageSize),
     getNextPageParam: (lastPage, allPages) => {
       return lastPage.length === pageSize ? allPages.length : undefined;
     },

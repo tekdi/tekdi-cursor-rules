@@ -72,11 +72,19 @@ export const FlexLayout: React.FC<FlexLayoutProps> = ({
     xl: 'gap-8'
   };
 
+  // Predefined justify mapping for Tailwind CSS static analysis
+  const justifyClasses = {
+    start: 'justify-start',
+    center: 'justify-center',
+    end: 'justify-end',
+    between: 'justify-between'
+  };
+
   return (
     <div className={cn(
       'flex',
       direction === 'col' ? 'flex-col' : 'flex-row',
-      `justify-${justify}`,
+      justifyClasses[justify],
       gapClasses[gap]
     )}>
       {children}
