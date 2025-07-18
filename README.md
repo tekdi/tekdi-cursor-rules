@@ -151,7 +151,9 @@ tekdi-cursor-rules/
 ```
 
 ## Cursor Guide
-Learn more how to use these rules selectively [Rules Usage Guide](docs/cursor-rules-guide.md)
+Learn more how to use these rules selectively 
+- [Frontend Rules Usage Guide](docs/frontend-cursor-rules-guide.md)
+- [Backend Rules Usage Guide](docs/backend-cursor-rules-guide.md)
 
 ## Contributing
 
