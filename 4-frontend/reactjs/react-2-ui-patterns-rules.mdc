@@ -1,0 +1,531 @@
+---
+description: USE WHEN implementing UI patterns and user interactions to create interfaces that are intuitive, accessible, and performant across all devices and user capabilities
+globs: ["**/*"]
+alwaysApply: false
+---
+
+# React UI/UX Patterns Rules
+
+```tsx
+// Required imports for the examples below
+import React, { useState } from 'react';
+import { cn } from 'clsx'; // or 'classnames' - utility for conditional className joining
+// Note: You'll need to install and import: npm install clsx
+```
+
+## React Responsive Design Patterns
+
+### Mobile-First React Components
+- Design React components with mobile viewport constraints first
+- Use CSS-in-JS or Tailwind CSS with responsive utilities
+- Implement responsive props for component behavior changes
+
+```tsx
+interface ResponsiveCardProps {
+  title: string;
+  content: string;
+  layout?: 'mobile' | 'desktop' | 'auto';
+}
+
+export const ResponsiveCard: React.FC<ResponsiveCardProps> = ({ 
+  title, 
+  content, 
+  layout = 'auto' 
+}) => (
+  <div className={cn(
+    'p-4 border rounded',
+    layout === 'auto' && 'flex flex-col sm:flex-row',
+    layout === 'mobile' && 'flex flex-col',
+    layout === 'desktop' && 'flex flex-row'
+  )}>
+    <h3 className="text-lg font-semibold mb-2 sm:mb-0 sm:mr-4">{title}</h3>
+    <p className="flex-1">{content}</p>
+  </div>
+);
+```
+
+### Flexible Layout Components
+- Use Flexbox and Grid utilities for layout components
+- Create reusable layout components with consistent spacing
+
+```tsx
+interface FlexLayoutProps {
+  children: React.ReactNode;
+  direction?: 'row' | 'col';
+  justify?: 'start' | 'center' | 'end' | 'between';
+  gap?: 'none' | 'xs' | 'sm' | 'md' | 'lg' | 'xl';
+}
+
+export const FlexLayout: React.FC<FlexLayoutProps> = ({
+  children,
+  direction = 'row',
+  justify = 'start',
+  gap = 'md'
+}) => {
+  // Predefined gap mapping for Tailwind CSS static analysis
+  const gapClasses = {
+    none: 'gap-0',
+    xs: 'gap-1',
+    sm: 'gap-2', 
+    md: 'gap-4',
+    lg: 'gap-6',
+    xl: 'gap-8'
+  };
+
+  // Predefined justify mapping for Tailwind CSS static analysis
+  const justifyClasses = {
+    start: 'justify-start',
+    center: 'justify-center',
+    end: 'justify-end',
+    between: 'justify-between'
+  };
+
+  return (
+    <div className={cn(
+      'flex',
+      direction === 'col' ? 'flex-col' : 'flex-row',
+      justifyClasses[justify],
+      gapClasses[gap]
+    )}>
+      {children}
+    </div>
+  );
+};
+```
+
+## React User Interface Patterns
+
+### Interactive State Management
+- Implement consistent hover, focus, active, and disabled states
+- Use React state to manage interaction states
+
+```tsx
+interface InteractiveButtonProps {
+  children: React.ReactNode;
+  onClick?: (event: React.MouseEvent) => void;
+  disabled?: boolean;
+  loading?: boolean;
+  variant?: 'primary' | 'secondary' | 'danger';
+}
+
+export const InteractiveButton: React.FC<InteractiveButtonProps> = ({
+  children,
+  onClick,
+  disabled = false,
+  loading = false,
+  variant = 'primary'
+}) => {
+  const [isPressed, setIsPressed] = useState(false);
+
+  const variantClasses = {
+    primary: 'bg-blue-500 hover:bg-blue-600 active:bg-blue-700 text-white',
+    secondary: 'bg-gray-200 hover:bg-gray-300 text-gray-800',
+    danger: 'bg-red-500 hover:bg-red-600 text-white'
+  };
+
+  return (
+    <button
+      type="button"
+      className={cn(
+        'px-4 py-2 rounded transition-all duration-150',
+        variantClasses[variant],
+        disabled && 'opacity-50 cursor-not-allowed',
+        isPressed && 'scale-95'
+      )}
+      onClick={onClick}
+      disabled={disabled || loading}
+      onMouseDown={() => setIsPressed(true)}
+      onMouseUp={() => setIsPressed(false)}
+      onMouseLeave={() => setIsPressed(false)}
+    >
+      {loading ? (
+        <div className="flex items-center">
+          <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2" />
+          Loading...
+        </div>
+      ) : (
+        children
+      )}
+    </button>
+  );
+};
+```
+
+### Loading and Empty States
+- Create reusable loading components with skeleton screens
+- Design meaningful empty states with clear actions
+
+```tsx
+interface LoadingStateProps {
+  type?: 'spinner' | 'skeleton';
+  text?: string;
+}
+
+export const LoadingState: React.FC<LoadingStateProps> = ({
+  type = 'spinner',
+  text
+}) => {
+  if (type === 'skeleton') {
+    return (
+      <div className="animate-pulse">
+        <div className="h-4 bg-gray-300 rounded w-3/4 mb-2" />
+        <div className="h-4 bg-gray-300 rounded w-1/2" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col items-center">
+      <div className="animate-spin border-2 border-gray-300 border-t-blue-500 rounded-full w-8 h-8" />
+      {text && <p className="mt-2 text-gray-600">{text}</p>}
+    </div>
+  );
+};
+
+interface EmptyStateProps {
+  title: string;
+  description?: string;
+  action?: {
+    label: string;
+    onClick: () => void;
+  };
+}
+
+export const EmptyState: React.FC<EmptyStateProps> = ({
+  title,
+  description,
+  action
+}) => (
+  <div className="flex flex-col items-center py-12 text-center">
+    <h3 className="text-lg font-semibold text-gray-900 mb-2">{title}</h3>
+    {description && <p className="text-gray-600 mb-6 max-w-sm">{description}</p>}
+    {action && (
+      <button
+        type="button"
+        onClick={action.onClick}
+        className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+      >
+        {action.label}
+      </button>
+    )}
+  </div>
+);
+```
+
+## React Form Design Patterns
+
+### Controlled Form Components
+- Use controlled components for form inputs
+- Implement proper form validation
+- Provide immediate feedback for validation errors
+
+```tsx
+interface FormFieldProps {
+  label: string;
+  name: string;
+  type?: string;
+  required?: boolean;
+  error?: string;
+  value: string;
+  onChange: (value: string) => void;
+}
+
+export const FormField: React.FC<FormFieldProps> = ({
+  label,
+  name,
+  type = 'text',
+  required = false,
+  error,
+  value,
+  onChange
+}) => (
+  <div className="mb-4">
+    <label htmlFor={name} className="block text-sm font-medium text-gray-700 mb-1">
+      {label}
+      {required && <span className="text-red-500 ml-1">*</span>}
+    </label>
+    <input
+      id={name}
+      name={name}
+      type={type}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className={cn(
+        'w-full px-3 py-2 border rounded focus:outline-none focus:ring-2',
+        error 
+          ? 'border-red-500 focus:ring-red-500' 
+          : 'border-gray-300 focus:ring-blue-500'
+      )}
+      aria-invalid={error ? 'true' : 'false'}
+    />
+    {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
+  </div>
+);
+```
+
+### Form Validation with React Hook Form
+```tsx
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+
+const userSchema = z.object({
+  email: z.string().email('Invalid email format'),
+  password: z.string().min(8, 'Password must be at least 8 characters')
+});
+
+type UserFormData = z.infer<typeof userSchema>;
+
+export const UserForm: React.FC = () => {
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting }
+  } = useForm<UserFormData>({
+    resolver: zodResolver(userSchema)
+  });
+
+  const onSubmit = async (data: UserFormData) => {
+    // TODO: Import registerUser from your auth service/API module
+    // import { registerUser } from '@/services/auth';
+    await registerUser(data);
+  };
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <div>
+        <input {...register('email')} type="email" className="w-full p-2 border rounded" />
+        {errors.email && <span className="text-red-500">{errors.email.message}</span>}
+      </div>
+      
+      <button
+        type="submit"
+        disabled={isSubmitting}
+        className="w-full py-2 bg-blue-500 text-white rounded disabled:opacity-50"
+      >
+        {isSubmitting ? 'Submitting...' : 'Submit'}
+      </button>
+    </form>
+  );
+};
+```
+
+## React Animation and Motion Patterns
+
+### CSS-in-JS Animations with Framer Motion
+- Use Framer Motion for complex animations
+- Keep animation duration under 300ms for UI feedback
+
+```tsx
+import { motion, AnimatePresence } from 'framer-motion';
+
+interface AnimatedModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  children: React.ReactNode;
+}
+
+export const AnimatedModal: React.FC<AnimatedModalProps> = ({
+  isOpen,
+  onClose,
+  children
+}) => (
+  <AnimatePresence>
+    {isOpen && (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+        onClick={onClose}
+      >
+        <motion.div
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.8, opacity: 0 }}
+          transition={{ duration: 0.2 }}
+          className="bg-white p-6 rounded-lg max-w-md w-full mx-4"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {children}
+        </motion.div>
+      </motion.div>
+    )}
+  </AnimatePresence>
+);
+```
+
+## React Touch and Gesture Patterns
+
+### Touch-Friendly React Components
+- Make interactive elements at least 44x44 pixels
+- Implement proper touch feedback with React state
+
+```tsx
+interface TouchableCardProps {
+  children: React.ReactNode;
+  onTap?: () => void;
+  onSwipeLeft?: () => void;
+  onSwipeRight?: () => void;
+}
+
+export const TouchableCard: React.FC<TouchableCardProps> = ({
+  children,
+  onTap,
+  onSwipeLeft,
+  onSwipeRight
+}) => {
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
+  const [isPressed, setIsPressed] = useState(false);
+
+  const minSwipeDistance = 50;
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+    setIsPressed(true);
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const onTouchEnd = () => {
+    setIsPressed(false);
+    if (touchStart === null || touchEnd === null) return;
+
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
+
+    if (isLeftSwipe && onSwipeLeft) {
+      onSwipeLeft();
+    } else if (isRightSwipe && onSwipeRight) {
+      onSwipeRight();
+    } else if (Math.abs(distance) < minSwipeDistance && onTap) {
+      onTap();
+    }
+  };
+
+  return (
+    <div
+      className={cn(
+        'select-none transition-transform duration-150',
+        isPressed && 'scale-95'
+      )}
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+    >
+      {children}
+    </div>
+  );
+};
+```
+
+## React Navigation Patterns
+
+### Navigation Components
+- Implement accessible navigation with proper ARIA attributes
+- Handle active states for navigation items
+
+```tsx
+import { NavLink } from 'react-router-dom';
+
+interface NavigationItem {
+  path: string;
+  label: string;
+  icon?: React.ReactNode;
+}
+
+interface NavigationProps {
+  items: NavigationItem[];
+  orientation?: 'horizontal' | 'vertical';
+}
+
+export const Navigation: React.FC<NavigationProps> = ({
+  items,
+  orientation = 'horizontal'
+}) => (
+  <nav
+    className={cn(
+      'flex',
+      orientation === 'horizontal' ? 'flex-row space-x-4' : 'flex-col space-y-2'
+    )}
+    role="navigation"
+    aria-label="Main navigation"
+  >
+    {items.map((item) => (
+      <NavLink
+        key={item.path}
+        to={item.path}
+        className={({ isActive }) =>
+          cn(
+            'flex items-center px-3 py-2 rounded transition-colors',
+            isActive
+              ? 'bg-blue-500 text-white'
+              : 'text-gray-700 hover:bg-gray-100'
+          )
+        }
+      >
+        {item.icon && <span className="mr-2">{item.icon}</span>}
+        {item.label}
+      </NavLink>
+    ))}
+  </nav>
+);
+```
+
+## React Performance UI Patterns
+
+### Virtual Scrolling for Large Lists
+- Implement virtual scrolling for performance with large datasets
+
+```tsx
+import { FixedSizeList as List } from 'react-window';
+
+interface VirtualListProps<T> {
+  items: T[];
+  height: number;
+  itemHeight: number;
+  renderItem: (props: { 
+    index: number; 
+    style: React.CSSProperties; 
+    data: T[];
+  }) => React.ReactElement;
+}
+
+export const VirtualList = <T,>({
+  items,
+  height,
+  itemHeight,
+  renderItem
+}: VirtualListProps<T>) => (
+  <List
+    height={height}
+    itemCount={items.length}
+    itemSize={itemHeight}
+    itemData={items}
+  >
+    {renderItem}
+  </List>
+);
+
+// Usage
+const ItemRenderer = ({ index, style, data }: any) => (
+  <div style={style} className="flex items-center p-2 border-b">
+    <span>{data[index].name}</span>
+  </div>
+);
+
+export const UserList: React.FC<{ users: User[] }> = ({ users }) => {
+  return (
+    <VirtualList
+      items={users}
+      height={400}
+      itemHeight={50}
+      renderItem={ItemRenderer}
+    />
+  );
+};

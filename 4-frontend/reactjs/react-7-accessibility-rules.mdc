@@ -1,0 +1,647 @@
+---
+description: USE WHEN creating inclusive, accessible web applications to ensure application work for all users, including those with disabilities
+globs: ["**/*"]
+alwaysApply: false
+---
+
+# React Accessibility Rules
+
+## React Semantic HTML and ARIA
+
+### Semantic JSX Structure
+- Use semantic HTML elements for their intended purpose
+- Implement proper heading hierarchy (h1-h6)
+- Use landmark elements (nav, main, aside, footer)
+- Provide meaningful structure for screen readers
+
+```tsx
+// Good: Semantic structure
+export const ArticlePage: React.FC<{ article: Article }> = ({ article }) => (
+  <main>
+    <article>
+      <header>
+        <h1>{article.title}</h1>
+        <p>By {article.author} on <time dateTime={article.publishedAt}>{article.publishedDate}</time></p>
+      </header>
+      
+      <section>
+        <h2>Introduction</h2>
+        <p>{article.introduction}</p>
+      </section>
+      
+      <section>
+        <h2>Main Content</h2>
+        <p>{article.content}</p>
+      </section>
+    </article>
+    
+    <aside>
+      <h2>Related Articles</h2>
+      <nav aria-label="Related articles">
+        <ul>
+          {article.relatedArticles.map(related => (
+            <li key={related.id}>
+              <a href={`/articles/${related.slug}`}>{related.title}</a>
+            </li>
+          ))}
+        </ul>
+      </nav>
+    </aside>
+  </main>
+);
+
+// Good: Proper button vs link usage
+export const ActionButtons: React.FC = () => (
+  <div>
+    {/* Use button for actions */}
+    <button onClick={handleSave}>Save Changes</button>
+    <button onClick={handleDelete}>Delete Item</button>
+    
+    {/* Use links for navigation */}
+    <a href="/help">Help Documentation</a>
+    <a href="/settings">Account Settings</a>
+  </div>
+);
+```
+
+### ARIA Attributes Implementation
+- Use ARIA labels for elements without visible text
+- Implement ARIA states and properties
+- Provide descriptions with aria-describedby
+- Use ARIA landmarks appropriately
+
+```tsx
+// ARIA labels and descriptions
+interface AccessibleButtonProps {
+  onClick: () => void;
+  isLoading?: boolean;
+  disabled?: boolean;
+  children: React.ReactNode;
+  ariaLabel?: string;
+  ariaDescribedBy?: string;
+}
+
+export const AccessibleButton: React.FC<AccessibleButtonProps> = ({
+  onClick,
+  isLoading = false,
+  disabled = false,
+  children,
+  ariaLabel,
+  ariaDescribedBy
+}) => (
+  <button
+    onClick={onClick}
+    disabled={disabled || isLoading}
+    aria-label={ariaLabel}
+    aria-describedby={ariaDescribedBy}
+    aria-busy={isLoading}
+  >
+    {isLoading ? 'Loading...' : children}
+  </button>
+);
+
+// ARIA live regions for dynamic content
+export const StatusMessage: React.FC<{ message: string; type: 'success' | 'error' | 'info' }> = ({ 
+  message, 
+  type 
+}) => (
+  <div
+    role="status"
+    aria-live="polite"
+    aria-atomic="true"
+    className={cn('status-message', `status-${type}`)}
+  >
+    {message}
+  </div>
+);
+
+// ARIA expanded for collapsible content
+export const CollapsibleSection: React.FC<{ title: string; children: React.ReactNode }> = ({ 
+  title, 
+  children 
+}) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const contentId = useId();
+
+  return (
+    <div>
+      <button
+        aria-expanded={isExpanded}
+        aria-controls={contentId}
+        onClick={() => setIsExpanded(!isExpanded)}
+      >
+        {title}
+      </button>
+      
+      <div
+        id={contentId}
+        hidden={!isExpanded}
+        aria-hidden={!isExpanded}
+      >
+        {children}
+      </div>
+    </div>
+  );
+};
+```
+
+## React Keyboard Navigation
+
+### Focus Management
+- Implement proper tab order
+- Manage focus for dynamic content
+- Handle focus trapping in modals
+- Provide skip links for navigation
+
+```tsx
+// Focus management hook
+export const useFocusManagement = () => {
+  const focusElement = useCallback((element: HTMLElement | null) => {
+    if (element) {
+      element.focus();
+    }
+  }, []);
+
+  const focusFirstInteractive = useCallback((container: HTMLElement) => {
+    const focusableElements = container.querySelectorAll(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+    
+    if (focusableElements.length > 0) {
+      (focusableElements[0] as HTMLElement).focus();
+    }
+  }, []);
+
+  return { focusElement, focusFirstInteractive };
+};
+
+// Focus trap for modals
+export const useFocusTrap = (isActive: boolean) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isActive || !containerRef.current) return;
+
+    const container = containerRef.current;
+    const focusableElements = container.querySelectorAll(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    ) as NodeListOf<HTMLElement>;
+
+    const firstElement = focusableElements[0];
+    const lastElement = focusableElements[focusableElements.length - 1];
+
+    const handleTabKey = (e: KeyboardEvent) => {
+      if (e.key === 'Tab') {
+        if (e.shiftKey) {
+          if (document.activeElement === firstElement) {
+            e.preventDefault();
+            lastElement.focus();
+          }
+        } else {
+          if (document.activeElement === lastElement) {
+            e.preventDefault();
+            firstElement.focus();
+          }
+        }
+      }
+    };
+
+    container.addEventListener('keydown', handleTabKey);
+    firstElement?.focus();
+
+    return () => {
+      container.removeEventListener('keydown', handleTabKey);
+    };
+  }, [isActive]);
+
+  return containerRef;
+};
+
+// Accessible modal with focus trap
+interface AccessibleModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  title: string;
+  children: React.ReactNode;
+}
+
+export const AccessibleModal: React.FC<AccessibleModalProps> = ({
+  isOpen,
+  onClose,
+  title,
+  children
+}) => {
+  const modalRef = useFocusTrap(isOpen);
+  const titleId = useId();
+
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = 'unset';
+      };
+    }
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={titleId}
+    >
+      <div
+        ref={modalRef}
+        className="bg-white p-6 rounded-lg max-w-md w-full mx-4"
+      >
+        <header className="flex justify-between items-center mb-4">
+          <h2 id={titleId} className="text-xl font-semibold">
+            {title}
+          </h2>
+          <button
+            onClick={onClose}
+            aria-label="Close modal"
+            className="text-gray-500 hover:text-gray-700"
+          >
+            ×
+          </button>
+        </header>
+        
+        <div>{children}</div>
+      </div>
+    </div>
+  );
+};
+```
+
+### Keyboard Event Handling
+- Support standard keyboard interactions
+- Implement custom keyboard shortcuts
+- Handle arrow key navigation for lists
+
+```tsx
+// Keyboard navigation for lists
+export const useKeyboardNavigation = (items: any[], onSelect: (item: any) => void) => {
+  const [focusedIndex, setFocusedIndex] = useState(0);
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        setFocusedIndex(prev => Math.min(prev + 1, items.length - 1));
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        setFocusedIndex(prev => Math.max(prev - 1, 0));
+        break;
+      case 'Enter':
+      case ' ':
+        e.preventDefault();
+        if (items[focusedIndex]) {
+          onSelect(items[focusedIndex]);
+        }
+        break;
+      case 'Home':
+        e.preventDefault();
+        setFocusedIndex(0);
+        break;
+      case 'End':
+        e.preventDefault();
+        setFocusedIndex(items.length - 1);
+        break;
+    }
+  }, [items, focusedIndex, onSelect]);
+
+  return { focusedIndex, handleKeyDown };
+};
+
+// Accessible dropdown/combobox
+interface AccessibleDropdownProps {
+  options: { value: string; label: string }[];
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+}
+
+export const AccessibleDropdown: React.FC<AccessibleDropdownProps> = ({
+  options,
+  value,
+  onChange,
+  placeholder = "Select an option"
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const listboxId = useId();
+  
+  const filteredOptions = options.filter(option =>
+    option.label.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const { focusedIndex, handleKeyDown } = useKeyboardNavigation(filteredOptions, (option) => {
+    onChange(option.value);
+    setIsOpen(false);
+  });
+
+  return (
+    <div className="relative">
+      <input
+        type="text"
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+        onFocus={() => setIsOpen(true)}
+        onKeyDown={handleKeyDown}
+        placeholder={placeholder}
+        role="combobox"
+        aria-expanded={isOpen}
+        aria-controls={listboxId}
+        aria-autocomplete="list"
+        className="w-full p-2 border rounded"
+      />
+      
+      {isOpen && (
+        <ul
+          id={listboxId}
+          role="listbox"
+          className="absolute top-full left-0 right-0 bg-white border rounded shadow-lg max-h-60 overflow-y-auto"
+        >
+          {filteredOptions.map((option, index) => (
+            <li
+              key={option.value}
+              role="option"
+              aria-selected={option.value === value}
+              className={cn(
+                'p-2 cursor-pointer',
+                index === focusedIndex && 'bg-blue-100',
+                option.value === value && 'bg-blue-500 text-white'
+              )}
+              onClick={() => {
+                onChange(option.value);
+                setIsOpen(false);
+              }}
+            >
+              {option.label}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+};
+```
+
+## React Form Accessibility
+
+### Accessible Form Design
+- Associate labels with form inputs
+- Provide clear error messages
+- Use fieldsets for grouped inputs
+- Implement proper form validation feedback
+
+```tsx
+// Accessible form field component
+interface AccessibleFormFieldProps {
+  id: string;
+  label: string;
+  type?: string;
+  value: string;
+  onChange: (value: string) => void;
+  error?: string;
+  helpText?: string;
+  required?: boolean;
+}
+
+export const AccessibleFormField: React.FC<AccessibleFormFieldProps> = ({
+  id,
+  label,
+  type = 'text',
+  value,
+  onChange,
+  error,
+  helpText,
+  required = false
+}) => {
+  const helpId = `${id}-help`;
+  const errorId = `${id}-error`;
+
+  return (
+    <div className="mb-4">
+      <label htmlFor={id} className="block font-medium mb-1">
+        {label}
+        {required && <span aria-label="required" className="text-red-500 ml-1">*</span>}
+      </label>
+      
+      <input
+        id={id}
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        aria-describedby={cn(
+          helpText && helpId,
+          error && errorId
+        )}
+        aria-invalid={error ? 'true' : 'false'}
+        required={required}
+        className={cn(
+          'w-full p-2 border rounded focus:ring-2 focus:ring-blue-500',
+          error && 'border-red-500'
+        )}
+      />
+      
+      {helpText && (
+        <p id={helpId} className="text-sm text-gray-600 mt-1">
+          {helpText}
+        </p>
+      )}
+      
+      {error && (
+        <p id={errorId} role="alert" className="text-sm text-red-600 mt-1">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+};
+
+// Accessible form with grouped fields
+export const AccessibleRegistrationForm: React.FC = () => {
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    password: ''
+  });
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const updateField = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: '' }));
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} noValidate>
+      <fieldset>
+        <legend className="text-lg font-semibold mb-4">Personal Information</legend>
+        
+        <AccessibleFormField
+          id="firstName"
+          label="First Name"
+          value={formData.firstName}
+          onChange={(value) => updateField('firstName', value)}
+          error={errors.firstName}
+          required
+        />
+        
+        <AccessibleFormField
+          id="lastName"
+          label="Last Name"
+          value={formData.lastName}
+          onChange={(value) => updateField('lastName', value)}
+          error={errors.lastName}
+          required
+        />
+      </fieldset>
+      
+      <fieldset>
+        <legend className="text-lg font-semibold mb-4">Account Information</legend>
+        
+        <AccessibleFormField
+          id="email"
+          label="Email Address"
+          type="email"
+          value={formData.email}
+          onChange={(value) => updateField('email', value)}
+          error={errors.email}
+          helpText="We'll never share your email with anyone else"
+          required
+        />
+        
+        <AccessibleFormField
+          id="password"
+          label="Password"
+          type="password"
+          value={formData.password}
+          onChange={(value) => updateField('password', value)}
+          error={errors.password}
+          helpText="Must be at least 8 characters long"
+          required
+        />
+      </fieldset>
+      
+      <button
+        type="submit"
+        className="w-full py-2 bg-blue-500 text-white rounded hover:bg-blue-600 focus:ring-2 focus:ring-blue-500"
+      >
+        Create Account
+      </button>
+    </form>
+  );
+};
+```
+
+## React Screen Reader Optimization
+
+### Screen Reader Announcements
+- Use live regions for dynamic content updates
+- Provide context for screen reader users
+- Announce loading states and errors
+
+```tsx
+// Screen reader announcements hook
+export const useScreenReaderAnnouncements = () => {
+  const announce = useCallback((message: string, priority: 'polite' | 'assertive' = 'polite') => {
+    const announcement = document.createElement('div');
+    announcement.setAttribute('aria-live', priority);
+    announcement.setAttribute('aria-atomic', 'true');
+    announcement.className = 'sr-only';
+    announcement.textContent = message;
+    
+    document.body.appendChild(announcement);
+    
+    setTimeout(() => {
+      document.body.removeChild(announcement);
+    }, 1000);
+  }, []);
+
+  return { announce };
+};
+
+// Accessible data table
+interface AccessibleTableProps {
+  data: any[];
+  columns: { key: string; label: string; sortable?: boolean }[];
+  caption: string;
+}
+
+export const AccessibleTable: React.FC<AccessibleTableProps> = ({
+  data,
+  columns,
+  caption
+}) => {
+  const [sortColumn, setSortColumn] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const { announce } = useScreenReaderAnnouncements();
+
+  const handleSort = (columnKey: string) => {
+    const newDirection = sortColumn === columnKey && sortDirection === 'asc' ? 'desc' : 'asc';
+    setSortColumn(columnKey);
+    setSortDirection(newDirection);
+    
+    const column = columns.find(col => col.key === columnKey);
+    announce(`Table sorted by ${column?.label} ${newDirection}ending`);
+  };
+
+  return (
+    <table className="w-full border-collapse border">
+      <caption className="text-left font-semibold mb-2">
+        {caption}
+      </caption>
+      
+      <thead>
+        <tr>
+          {columns.map(column => (
+            <th
+              key={column.key}
+              scope="col"
+              className="border p-2 text-left bg-gray-100"
+            >
+              {column.sortable ? (
+                <button
+                  onClick={() => handleSort(column.key)}
+                  className="flex items-center space-x-1"
+                  aria-sort={
+                    sortColumn === column.key 
+                      ? sortDirection === 'asc' ? 'ascending' : 'descending'
+                      : 'none'
+                  }
+                >
+                  <span>{column.label}</span>
+                  <span aria-hidden="true">
+                    {sortColumn === column.key ? (sortDirection === 'asc' ? '↑' : '↓') : '↕'}
+                  </span>
+                </button>
+              ) : (
+                column.label
+              )}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      
+      <tbody>
+        {data.map((row, index) => (
+          <tr key={index}>
+            {columns.map(column => (
+              <td key={column.key} className="border p-2">
+                {row[column.key]}
+              </td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+};

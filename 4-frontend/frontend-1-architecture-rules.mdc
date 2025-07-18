@@ -8,21 +8,35 @@ alwaysApply: false
 
 ## SOLID Principles in Components
 
-### Single Responsibility Principle
+### Single Responsibility Principle (SOLID - S)
 - Each component must have ONE clear, well-defined purpose
 - Split components that handle multiple concerns into smaller, focused units
 - Name components based on their single responsibility (Button, Modal, UserCard)
 - If component description uses "AND", consider splitting it
 - Keep business logic separate from UI rendering logic
 
-### Open/Closed Principle
+### Open/Closed Principle (SOLID - O)
 - Design components for extension without modification
 - Use composition patterns over inheritance
 - Leverage props/attributes for configuration
 - Implement plugin/slot patterns for extensibility
 - Use CSS custom properties for style customization
 
-### Dependency Inversion
+### Liskov Substitution Principle (SOLID - L)
+- Components should be replaceable with their implementations without breaking functionality
+- Ensure consistent behavior across component variants
+- Maintain compatible interfaces when extending components
+- Avoid breaking contracts in component inheritance chains
+- Test component substitutability in different contexts
+
+### Interface Segregation Principle (SOLID - I)
+- Create focused, minimal interfaces rather than large, monolithic ones
+- Split complex prop interfaces into smaller, specific contracts
+- Avoid forcing components to depend on props they don't use
+- Use composition to combine focused interfaces when needed
+- Keep component APIs lean and purposeful
+
+### Dependency Inversion (SOLID - D)
 - Depend on abstractions, not concrete implementations
 - Inject dependencies through props or context
 - Abstract API calls behind service interfaces
@@ -127,3 +141,15 @@ alwaysApply: false
 - Group related tests logically
 - Test component integration, not just units
 - Mock external dependencies appropriately
+
+## 12-Factor App Principles for Frontend
+
+### Configuration Management (12-Factor III)
+- Externalize configuration through environment variables
+- Separate development, staging, and production configurations
+- Avoid hardcoding environment-specific values in source code
+- Use configuration objects injected at runtime
+
+### Development and Production Parity (12-Factor X)
+- Maintain consistent API contracts across environments
+- Use feature flags instead of environment-specific code branches

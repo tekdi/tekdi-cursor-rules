@@ -150,8 +150,10 @@ tekdi-cursor-rules/
 └── copy-cursor-rules.sh  # Automated setup script
 ```
 
-## Cursor Guide
-Learn more how to use these rules selectively [Rules Usage Guide](docs/cursor-rules-guide.md)
+## Cursor Rules Usage Guide
+Learn more how to use these rules selectively 
+- [Frontend Rules Usage Guide](docs/frontend-cursor-rules-guide.md)
+- [Backend Rules Usage Guide](docs/backend-cursor-rules-guide.md)
 
 ## Contributing
 

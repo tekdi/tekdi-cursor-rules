@@ -1,5 +1,5 @@
 ---
-description: USE WHEN when intergrating APIs
+description: USE WHEN intergrating APIs
 globs: ["**/*"]
 alwaysApply: false
 ---

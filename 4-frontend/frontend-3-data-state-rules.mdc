@@ -1,21 +1,30 @@
 ---
-description: USE WHEN when handling application state and data flow for efficient, predictable data and state management
+description: USE WHEN handling application state and data flow for efficient, predictable data and state management
 globs: ["**/*"]
 alwaysApply: false
 ---
 
 # Frontend Data & State Management Rules
 
+## 12-Factor App Principles for Frontend
+
+### Stateless Components (12-Factor VI)
+- Design components to be stateless when possible
+- Store session state in client-side or shared backing services (cookies, localStorage, Redis, etc.)
+- Avoid storing session data in the memory of a single front-end server instance
+- Make components work regardless of previous interactions
+- Handle component state restoration gracefully
+
 ## State Management Principles
 
-### State Ownership and Boundaries
+### State Ownership and Boundaries (Single Responsibility)
 - Keep state as close to its usage as possible
 - Lift state up only when multiple components genuinely need access
 - Avoid prop drilling beyond 2-3 component levels
 - Clearly define state ownership at component boundaries
 - Use context or state management libraries for deeply nested sharing
 
-### Immutability Patterns
+### Immutability Patterns (Functional Programming)
 - Treat all state as immutable - never mutate existing state objects
 - Use spread operators for shallow object/array updates
 - Implement pure update functions for state transformations
@@ -51,7 +60,6 @@ alwaysApply: false
 - Persist critical user state across browser sessions
 - Serialize and deserialize state properly
 - Handle storage quota limits gracefully
-- Sync state across browser tabs when necessary
 - Clear sensitive data appropriately
 
 ### Session Management

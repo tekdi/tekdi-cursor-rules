@@ -1,0 +1,368 @@
+---
+description: USE WHEN designing frontend architecture, implementing design patterns, organizing code structure, or discussing architectural decisions for creating maintainable, scalable component architectures
+globs: ["**/*"]
+alwaysApply: false
+---
+
+# React Architecture Rules
+
+## SOLID Principles in React Components
+
+### Single Responsibility Principle (SOLID - S)
+- Each React component must have ONE clear, well-defined purpose
+- Split components that handle multiple concerns into smaller, focused units
+- Name components based on their single responsibility (Button, Modal, UserCard)
+- Keep business logic separate from UI rendering logic
+
+```tsx
+// Good: Single responsibility
+export const UserAvatar: React.FC<UserAvatarProps> = ({ user, size = 'md' }) => {
+  return (
+    <img 
+      src={user.avatar} 
+      alt={`${user.name} avatar`}
+      className={cn('rounded-full', sizeClasses[size])}
+    />
+  );
+};
+```
+
+### Open/Closed Principle (SOLID - O)
+- Design React components for extension without modification
+- Use composition patterns over inheritance
+- Leverage props and children for configuration
+
+```tsx
+interface ButtonProps {
+  variant?: 'primary' | 'secondary';
+  children: React.ReactNode;
+  leftIcon?: React.ReactNode;
+}
+
+export const Button: React.FC<ButtonProps> = ({ 
+  variant = 'primary', 
+  children,
+  leftIcon,
+  ...props
+}) => (
+  <button className={cn(baseClasses, variantClasses[variant])} {...props}>
+    {leftIcon && <span className="mr-2">{leftIcon}</span>}
+    {children}
+  </button>
+);
+```
+
+### Liskov Substitution Principle (SOLID - L)
+- React components should be replaceable with their implementations without breaking functionality
+- Ensure consistent behavior across component variants
+
+```tsx
+interface BaseInputProps {
+  value: string;
+  onChange: (value: string) => void;
+  disabled?: boolean;
+}
+
+export const TextInput: React.FC<BaseInputProps> = (props) => (
+  <input type="text" {...props} />
+);
+
+export const EmailInput: React.FC<BaseInputProps> = (props) => (
+  <input type="email" {...props} />
+);
+```
+
+### Interface Segregation Principle (SOLID - I)
+- Create focused, minimal prop interfaces rather than large, monolithic ones
+- Split complex prop interfaces into smaller, specific contracts
+
+```tsx
+interface BaseComponentProps {
+  className?: string;
+  children?: React.ReactNode;
+}
+
+interface ClickableProps {
+  onClick: (event: React.MouseEvent) => void;
+  disabled?: boolean;
+}
+
+interface FormFieldProps {
+  name: string;
+  label: string;
+  error?: string;
+}
+
+type ClickableButton = BaseComponentProps & ClickableProps;
+```
+
+### Dependency Inversion (SOLID - D)
+- Depend on abstractions, not concrete implementations
+- Inject dependencies through props or context
+
+```tsx
+interface UserService {
+  fetchUser: (id: string) => Promise<User>;
+  updateUser: (user: User) => Promise<User>;
+}
+
+interface UserProfileProps {
+  userId: string;
+  userService: UserService;
+}
+
+export const UserProfile: React.FC<UserProfileProps> = ({ userId, userService }) => {
+  const { data: user, loading } = useQuery(['user', userId], () => userService.fetchUser(userId));
+  // Component implementation
+};
+```
+
+## React Component Structure & Organization
+
+### Atomic Design with React
+- **Atoms**: Basic React components (Button, Input, Icon)
+- **Molecules**: Combinations of atoms (SearchBox, FormField)
+- **Organisms**: Complex UI sections (Header, UserForm, ProductList)
+- **Templates**: Page layouts with placeholder content
+- **Pages**: Complete route components with real data
+
+```tsx
+// Atom
+export const Button: React.FC<ButtonProps> = ({ children, ...props }) => (
+  <button {...props}>{children}</button>
+);
+
+// Molecule
+export const SearchBox: React.FC<SearchBoxProps> = ({ onSearch }) => (
+  <div className="flex">
+    <Input placeholder="Search..." />
+    <Button onClick={onSearch}>Search</Button>
+  </div>
+);
+```
+
+### File Organization
+- Use PascalCase for component files: `UserProfile.tsx`
+- Co-locate related files in component folders
+- Export components as named exports, not default exports
+
+```
+/components
+  /atoms
+    /Button
+      - Button.tsx
+      - Button.test.tsx
+      - index.ts
+  /molecules
+  /organisms
+```
+
+### Component Interface Design
+- Define props interfaces with descriptive names ending in "Props"
+- Use strict TypeScript typing for all props
+
+```tsx
+interface UserCardProps {
+  user: User;
+  onEdit?: (user: User) => void;
+  showActions?: boolean;
+  className?: string;
+}
+
+export const UserCard: React.FC<UserCardProps> = ({
+  user,
+  onEdit,
+  showActions = true,
+  className
+}) => {
+  // Component implementation
+};
+```
+
+## React Data Flow Architecture
+
+### Component Communication
+- Pass data down through props
+- Use callback functions for upward communication
+- Avoid deep prop drilling beyond 2-3 levels
+- Use React Context for cross-cutting concerns
+
+```tsx
+interface TodoListProps {
+  todos: Todo[];
+  onToggle: (id: string) => void;
+  onDelete: (id: string) => void;
+}
+
+export const TodoList: React.FC<TodoListProps> = ({ todos, onToggle, onDelete }) => (
+  <ul>
+    {todos.map(todo => (
+      <TodoItem 
+        key={todo.id} 
+        todo={todo} 
+        onToggle={() => onToggle(todo.id)}
+        onDelete={() => onDelete(todo.id)}
+      />
+    ))}
+  </ul>
+);
+```
+
+### Custom Hooks for Logic Reuse
+- Extract reusable stateful logic into custom hooks
+- Prefix custom hook names with "use"
+- Keep custom hooks focused on single responsibility
+
+```tsx
+interface UseApiResult<T> {
+  data: T | null;
+  loading: boolean;
+  error: string | null;
+  refetch: () => void;
+}
+
+export const useApi = <T>(url: string): UseApiResult<T> => {
+  const [data, setData] = useState<T | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(url);
+      const result = await response.json();
+      setData(result);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error');
+    } finally {
+      setLoading(false);
+    }
+  }, [url]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  return { data, loading, error, refetch: fetchData };
+};
+```
+
+## React Component Lifecycle & Side Effects
+
+### Effect Management with Hooks
+- Use `useEffect` for side effects and lifecycle events
+- Always include dependency arrays in `useEffect`
+- Clean up subscriptions and event listeners
+
+```tsx
+export const UserProfile: React.FC<{ userId: string }> = ({ userId }) => {
+  const [user, setUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    const abortController = new AbortController();
+
+    const fetchUser = async () => {
+      try {
+        const response = await fetch(`/api/users/${userId}`, {
+          signal: abortController.signal
+        });
+        const userData = await response.json();
+        setUser(userData);
+      } catch (error) {
+        if (error.name !== 'AbortError') {
+          console.error('Failed to fetch user:', error);
+        }
+      }
+    };
+
+    fetchUser();
+    return () => abortController.abort();
+  }, [userId]);
+
+  return user ? <div>{user.name}</div> : <div>Loading...</div>;
+};
+```
+
+## React Error Handling
+
+### Error Boundaries
+- Implement Error Boundaries at strategic component levels
+- Provide fallback UI for component errors
+
+```tsx
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error?: Error;
+}
+
+export class ErrorBoundary extends React.Component<
+  React.PropsWithChildren<{}>,
+  ErrorBoundaryState
+> {
+  constructor(props: React.PropsWithChildren<{}>) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('Component error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="error-fallback">
+          <h2>Something went wrong.</h2>
+          <button onClick={() => this.setState({ hasError: false })}>
+            Try again
+          </button>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+```
+
+## Testing Architecture
+
+### Testable React Component Design
+- Design components with testing in mind
+- Use dependency injection for external services
+- Keep business logic in custom hooks
+
+```tsx
+interface UserListProps {
+  userService: UserService;
+}
+
+export const UserList: React.FC<UserListProps> = ({ userService }) => {
+  const { data: users, loading, error } = useUsers(userService);
+
+  if (loading) return <div>Loading...</div>;
+  if (error) return <div>Error: {error}</div>;
+
+  return (
+    <ul>
+      {users?.map(user => (
+        <li key={user.id}>{user.name}</li>
+      ))}
+    </ul>
+  );
+};
+
+// Test
+test('UserList displays users when loaded', async () => {
+  const mockUserService = {
+    fetchUsers: jest.fn().mockResolvedValue([{ id: '1', name: 'John' }])
+  };
+
+  render(<UserList userService={mockUserService} />);
+  
+  expect(await screen.findByText('John')).toBeInTheDocument();
+});
