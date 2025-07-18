@@ -21,7 +21,7 @@ interface UserCardProps {
   isSelected: boolean;
 }
 
-const UserCard = React.memo<UserCardProps>(({ user, onEdit, isSelected }) => {
+const UserCard: React.FC<UserCardProps> = React.memo(({ user, onEdit, isSelected }) => {
   // Expensive computation memoized
   const formattedData = useMemo(() => {
     return {

@@ -134,37 +134,37 @@ This guide explains how to effectively use the cursor AI rules for frontend deve
 ## Common Combinations
 
 ### **Quick Component Development**
-```
+```text
 frontend-1-architecture-rules.mdc + react-1-architecture-rules.mdc
 ```
 
 ### **Interactive UI with State**
-```
+```text
 react-2-ui-patterns-rules.mdc + react-3-data-state-rules.mdc
 ```
 
 ### **API-Connected Components**
-```
+```text
 react-4-api-integration-rules.mdc + react-3-data-state-rules.mdc
 ```
 
 ### **Performance-Critical Features**
-```
+```text
 frontend-5-performance-rules.mdc + react-5-performance-rules.mdc
 ```
 
 ### **Accessible Components**
-```
+```text
 frontend-7-accessibility-rules.mdc + react-7-accessibility-rules.mdc
 ```
 
 ### **Secure Data Handling**
-```
+```text
 frontend-6-security-rules.mdc + react-6-security-rules.mdc
 ```
 
 ### **Comprehensive Testing**
-```
+```text
 frontend-8-testing-rules.mdc + react-8-testing-rules.mdc
 ```
 

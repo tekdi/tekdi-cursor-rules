@@ -85,5 +85,5 @@ alwaysApply: false
 - Use structured logging with consistent data formats
 - Implement debug modes that can be toggled during development
 - Write debugging utilities that help trace component behavior
-- Add meaningful console.log statements for complex operations during development
+- Prefer a dedicated logger over ad-hoc console statements
 - Use descriptive variable names and comments

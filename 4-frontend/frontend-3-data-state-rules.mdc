@@ -10,8 +10,8 @@ alwaysApply: false
 
 ### Stateless Components (12-Factor VI)
 - Design components to be stateless when possible
-- Store session state in external systems (cookies, localStorage, server)
-- Avoid relying on server-side session state
+- Store session state in client-side or shared backing services (cookies, localStorage, Redis, etc.)
+- Avoid storing session data in the memory of a single front-end server instance
 - Make components work regardless of previous interactions
 - Handle component state restoration gracefully
 

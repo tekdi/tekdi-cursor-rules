@@ -356,9 +356,11 @@ export const useWebSocket = <T>(url: string) => {
   const [data, setData] = useState<T | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'open' | 'closed'>('connecting');
   const [error, setError] = useState<string | null>(null);
+  const wsRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
     const ws = new WebSocket(url);
+    wsRef.current = ws;
     
     ws.onopen = () => {
       setConnectionStatus('open');
@@ -384,12 +386,13 @@ export const useWebSocket = <T>(url: string) => {
 
     return () => {
       ws.close();
+      wsRef.current = null;
     };
   }, [url]);
 
   const sendMessage = useCallback((message: any) => {
-    if (connectionStatus === 'open') {
-      ws.send(JSON.stringify(message));
+    if (connectionStatus === 'open' && wsRef.current) {
+      wsRef.current.send(JSON.stringify(message));
     }
   }, [connectionStatus]);
 

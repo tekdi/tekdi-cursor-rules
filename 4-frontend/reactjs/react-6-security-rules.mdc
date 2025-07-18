@@ -47,19 +47,42 @@ const SafeComponent: React.FC<{ userContent: string }> = ({ userContent }) => {
   );
 };
 
-// Input sanitization hook
-export const useSanitizedInput = (initialValue: string = '') => {
+// Input sanitization hook with DOMPurify
+import DOMPurify from 'dompurify';
+
+export const useSanitizedInput = (
+  initialValue: string = '', 
+  options: { allowHtml?: boolean; stripHtml?: boolean } = {}
+) => {
   const [value, setValue] = useState(initialValue);
 
   const updateValue = useCallback((newValue: string) => {
-    // Basic input sanitization
-    const sanitized = newValue
-      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-      .replace(/javascript:/gi, '')
-      .replace(/on\w+\s*=/gi, '');
+    let sanitized: string;
+
+    if (options.allowHtml) {
+      // Use DOMPurify for HTML sanitization - removes dangerous elements/attributes
+      sanitized = DOMPurify.sanitize(newValue, {
+        ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'p', 'br'],
+        ALLOWED_ATTR: []
+      });
+    } else if (options.stripHtml) {
+      // Strip all HTML tags and decode entities for plain text
+      sanitized = DOMPurify.sanitize(newValue, { 
+        ALLOWED_TAGS: [], 
+        ALLOWED_ATTR: [] 
+      });
+    } else {
+      // Escape HTML entities for plain text input (safest default)
+      sanitized = newValue
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#x27;');
+    }
     
     setValue(sanitized);
-  }, []);
+  }, [options.allowHtml, options.stripHtml]);
 
   return [value, updateValue] as const;
 };

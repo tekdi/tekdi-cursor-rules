@@ -334,14 +334,15 @@ export const AccessibleDropdown: React.FC<AccessibleDropdownProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const listboxId = useId();
-  const { focusedIndex, handleKeyDown } = useKeyboardNavigation(options, (option) => {
-    onChange(option.value);
-    setIsOpen(false);
-  });
-
+  
   const filteredOptions = options.filter(option =>
     option.label.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const { focusedIndex, handleKeyDown } = useKeyboardNavigation(filteredOptions, (option) => {
+    onChange(option.value);
+    setIsOpen(false);
+  });
 
   return (
     <div className="relative">
