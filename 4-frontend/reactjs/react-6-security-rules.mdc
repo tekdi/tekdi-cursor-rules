@@ -227,12 +227,18 @@ class SecureTokenStorage {
   private static readonly ACCESS_TOKEN_KEY = 'access_token';
 
   static setTokens(accessToken: string, refreshToken: string) {
-    // Store access token in memory (more secure)
+    // Store access token in sessionStorage (cleared on tab close)
     sessionStorage.setItem(this.ACCESS_TOKEN_KEY, accessToken);
     
-    // Store refresh token in httpOnly cookie (most secure)
-    // This would typically be set by the server
-    document.cookie = `refresh_token=${refreshToken}; Secure; HttpOnly; SameSite=Strict`;
+    // WARNING: refresh token should NOT be stored client-side for security
+    // Instead, refresh tokens should be set by the server via Set-Cookie header
+    // with HttpOnly and Secure flags to prevent XSS exposure
+    // 
+    // Example server response header:
+    // Set-Cookie: refresh_token=abc123; HttpOnly; Secure; SameSite=Strict; Path=/
+    //
+    // The client should never handle refresh tokens directly
+    console.warn('Refresh token should be set by server via HttpOnly cookie, not client-side');
   }
 
   static getAccessToken(): string | null {
@@ -241,7 +247,11 @@ class SecureTokenStorage {
 
   static clearTokens() {
     sessionStorage.removeItem(this.ACCESS_TOKEN_KEY);
-    document.cookie = `refresh_token=; expires=Thu, 01 Jan 1970 00:00:00 GMT; Secure; HttpOnly; SameSite=Strict`;
+    
+    // To clear refresh token, make a request to server logout endpoint
+    // Server will clear the HttpOnly cookie with Set-Cookie header
+    // Client-side cookie clearing for non-HttpOnly cookies only:
+    // document.cookie = `refresh_token=; expires=Thu, 01 Jan 1970 00:00:00 GMT; Secure; SameSite=Strict`;
   }
 }
 
@@ -368,7 +378,9 @@ export const useCSRFToken = () => {
   useEffect(() => {
     const fetchCSRFToken = async () => {
       try {
-        const response = await fetch('/api/csrf-token');
+        const response = await fetch('/api/csrf-token', {
+          credentials: 'include'
+        });
         const { token } = await response.json();
         setCSRFToken(token);
       } catch (error) {
@@ -533,8 +545,27 @@ class SecureApiClient {
     const response = await fetch(`${this.baseURL}${endpoint}`, config);
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || `HTTP ${response.status}`);
+      let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+      
+      try {
+        // Safely attempt to parse error response as JSON
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorData.error || errorMessage;
+        } else {
+          // Try to get text response for non-JSON errors
+          const errorText = await response.text();
+          if (errorText.trim()) {
+            errorMessage = errorText;
+          }
+        }
+      } catch (parseError) {
+        // If parsing fails, keep the original HTTP status message
+        console.warn('Failed to parse error response:', parseError);
+      }
+      
+      throw new Error(errorMessage);
     }
 
     return response.json();

@@ -6,6 +6,13 @@ alwaysApply: false
 
 # React UI/UX Patterns Rules
 
+```tsx
+// Required imports for the examples below
+import React, { useState } from 'react';
+import { cn } from 'clsx'; // or 'classnames' - utility for conditional className joining
+// Note: You'll need to install and import: npm install clsx
+```
+
 ## React Responsive Design Patterns
 
 ### Mobile-First React Components
@@ -46,24 +53,36 @@ interface FlexLayoutProps {
   children: React.ReactNode;
   direction?: 'row' | 'col';
   justify?: 'start' | 'center' | 'end' | 'between';
-  gap?: number;
+  gap?: 'none' | 'xs' | 'sm' | 'md' | 'lg' | 'xl';
 }
 
 export const FlexLayout: React.FC<FlexLayoutProps> = ({
   children,
   direction = 'row',
   justify = 'start',
-  gap = 4
-}) => (
-  <div className={cn(
-    'flex',
-    direction === 'col' ? 'flex-col' : 'flex-row',
-    `justify-${justify}`,
-    `gap-${gap}`
-  )}>
-    {children}
-  </div>
-);
+  gap = 'md'
+}) => {
+  // Predefined gap mapping for Tailwind CSS static analysis
+  const gapClasses = {
+    none: 'gap-0',
+    xs: 'gap-1',
+    sm: 'gap-2', 
+    md: 'gap-4',
+    lg: 'gap-6',
+    xl: 'gap-8'
+  };
+
+  return (
+    <div className={cn(
+      'flex',
+      direction === 'col' ? 'flex-col' : 'flex-row',
+      `justify-${justify}`,
+      gapClasses[gap]
+    )}>
+      {children}
+    </div>
+  );
+};
 ```
 
 ## React User Interface Patterns
@@ -98,6 +117,7 @@ export const InteractiveButton: React.FC<InteractiveButtonProps> = ({
 
   return (
     <button
+      type="button"
       className={cn(
         'px-4 py-2 rounded transition-all duration-150',
         variantClasses[variant],
@@ -173,6 +193,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
     {description && <p className="text-gray-600 mb-6 max-w-sm">{description}</p>}
     {action && (
       <button
+        type="button"
         onClick={action.onClick}
         className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
       >
@@ -257,6 +278,8 @@ export const UserForm: React.FC = () => {
   });
 
   const onSubmit = async (data: UserFormData) => {
+    // TODO: Import registerUser from your auth service/API module
+    // import { registerUser } from '@/services/auth';
     await registerUser(data);
   };
 
@@ -362,7 +385,7 @@ export const TouchableCard: React.FC<TouchableCardProps> = ({
 
   const onTouchEnd = () => {
     setIsPressed(false);
-    if (!touchStart || !touchEnd) return;
+    if (touchStart === null || touchEnd === null) return;
 
     const distance = touchStart - touchEnd;
     const isLeftSwipe = distance > minSwipeDistance;
