@@ -6,7 +6,7 @@ alwaysApply: false
 
 # Frontend Security Rules
 
-## Input Security and Data Validation
+## Input Security and Data Validation (Defense in Depth)
 
 ### User Input Sanitization
 - Sanitize all user input before rendering or processing
@@ -15,7 +15,7 @@ alwaysApply: false
 - Use allowlists instead of blocklists for input validation
 - Never trust data from external sources without validation
 
-### XSS Prevention
+### XSS Prevention (Defense in Depth)
 - Use framework-provided safe rendering methods
 - Avoid innerHTML with user-generated content
 - Implement Content Security Policy (CSP) headers
@@ -29,7 +29,7 @@ alwaysApply: false
 - Implement rate limiting for form submissions
 - Use anti-automation measures when necessary
 
-## Authentication and Session Security
+## Authentication and Session Security (Defense in Depth)
 
 ### Secure Token Handling
 - Store authentication tokens securely (httpOnly cookies preferred)
@@ -68,21 +68,17 @@ alwaysApply: false
 - Use nonce or hash-based CSP for inline scripts
 - Restrict resource loading to trusted domains
 - Implement CSP violation reporting with event listeners
-- Regularly review and update CSP rules
+- Update CSP rules when adding new external resources
 
 ### Dependency Security
-- Regularly audit dependencies for vulnerabilities
-- Use dependency scanning tools
-- Keep dependencies updated
-- Remove unused dependencies
-- Use lockfiles to ensure consistent installs
+- Use lockfiles for consistent dependency versions
 
 ### Error Handling and Information Disclosure
 - Handle errors gracefully without exposing system information
 - Log errors securely without sensitive data
 - Provide user-friendly error messages
 - Implement proper fallback mechanisms
-- Create error logging utilities to track security-related error patterns
+- Write error logging utilities to capture security-related error patterns
 
 ## Third-Party Integration Security
 

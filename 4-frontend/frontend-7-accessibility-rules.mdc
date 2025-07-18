@@ -6,7 +6,7 @@ alwaysApply: false
 
 # Frontend Accessibility Rules
 
-## Semantic HTML Foundation
+## Semantic HTML Foundation (Web Standards)
 
 ### Proper Element Usage
 - Use HTML elements for their intended semantic purpose
@@ -29,7 +29,7 @@ alwaysApply: false
 - Avoid using list markup for non-list content
 - Include proper list item structure
 
-## ARIA Implementation
+## ARIA Implementation (WCAG)
 
 ### Labels and Descriptions
 - Add aria-label for elements without visible text
@@ -52,7 +52,7 @@ alwaysApply: false
 - Use role="status" for status updates
 - Handle loading states with screen reader announcements
 
-## Keyboard Navigation
+## Keyboard Navigation (WCAG)
 
 ### Focus Management
 - Ensure all interactive elements are keyboard accessible
@@ -80,7 +80,6 @@ alwaysApply: false
 ### Color and Contrast
 - Meet WCAG 2.1 AA contrast ratios (4.5:1 for normal text, 3:1 for large text)
 - Don't convey information through color alone
-- Test with color blindness simulators
 - Support system color preferences (dark/light mode)
 - Use patterns and textures alongside color
 
@@ -118,8 +117,5 @@ alwaysApply: false
 ## Testing and Validation
 
 ### Accessibility Testing
-- Test with keyboard navigation only
-- Use screen reader software for testing
 - Validate markup with accessibility checkers
-- Test color contrast ratios
 - Verify ARIA implementation

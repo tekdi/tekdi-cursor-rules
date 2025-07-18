@@ -8,7 +8,7 @@ alwaysApply: false
 
 ## Bundle and Asset Optimization
 
-### Code Splitting Strategies
+### Code Splitting Strategies (Lazy Loading)
 - Split code by routes and features to reduce initial bundle size
 - Use dynamic imports for components not needed immediately
 - Create separate chunks for vendor libraries and dependencies
@@ -19,7 +19,6 @@ alwaysApply: false
 - Import only specific functions from libraries, avoid default imports
 - Use ES modules for better tree shaking support
 - Remove unused code and dead branches regularly
-- Configure build tools for optimal tree shaking
 - Avoid importing entire utility libraries when only using specific functions
 
 ### Asset Optimization
@@ -31,7 +30,7 @@ alwaysApply: false
 
 ## Runtime Performance Optimization
 
-### Rendering Optimization
+### Rendering Optimization (Performance First)
 - Minimize component re-renders through proper state management
 - Use memoization strategically for expensive computations
 - Implement proper key props for list rendering
@@ -41,7 +40,6 @@ alwaysApply: false
 ### Memory Management
 - Remove object references when components unmount
 - Use weak references for large objects when appropriate
-- Use Performance API and browser dev tools to profile memory usage
 
 ### Efficient DOM Operations
 - Batch DOM updates to minimize reflows and repaints
@@ -59,7 +57,6 @@ alwaysApply: false
 - Use service workers for offline support and caching
 
 ### Caching Strategies
-- Implement appropriate browser caching headers
 - Use service workers for application caching
 - Cache API responses with proper invalidation
 - Version static assets for cache busting
@@ -102,26 +99,19 @@ alwaysApply: false
 - Implement touch feedback immediately
 - Debounce expensive operations triggered by user input
 
-## Performance Monitoring
+## Performance Monitoring (DevOps)
 
 ### Performance Budgets
-- Set and enforce bundle size budgets in your build configuration
-- Write code to track Core Web Vitals (LCP, FID, CLS) locally during development
-- Use webpack-bundle-analyzer or similar tools to monitor bundle size
-- Create performance budgets as build-time constraints
-- Log performance metrics for debugging
+- Write code to track Core Web Vitals (LCP, FID, CLS) during development
+- Add performance logging to your debugging code
 
 ### Development Performance Practices
-- Profile performance regularly during development using browser dev tools
-- Use Performance API to measure and log component render times
-- Create build scripts that track bundle size changes
-- Document performance optimizations in code comments
+- Implement Performance API calls to measure component render times
+- Add comments documenting performance optimizations in code
 
 ## Performance Testing
 
 ### Performance Test Implementation
 - Write performance tests that fail when budgets are exceeded
 - Write tests that measure component render times
-- Test loading performance with realistic data volumes
-- Include memory usage tests for large datasets
-- Profile performance during test execution
+- Add performance assertions to your test suites

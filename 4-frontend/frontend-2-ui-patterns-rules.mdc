@@ -8,11 +8,10 @@ alwaysApply: false
 
 ## Responsive Design Patterns
 
-### Mobile-First Development
+### Mobile-First Development (Progressive Enhancement)
 - Start all layouts with mobile viewport constraints
 - Use relative units (rem, em, %, vw, vh) over fixed pixels
 - Design touch-friendly interfaces from the ground up
-- Test components across multiple viewport sizes during development
 - Implement progressive enhancement for larger screens
 
 ### Flexible Layout Systems
@@ -80,7 +79,7 @@ alwaysApply: false
 
 ## Animation and Motion Patterns
 
-### Performance-Conscious Animation
+### Performance-Conscious Animation (Performance First)
 - Use CSS transforms for animations (translateX, scale, rotate)
 - Leverage GPU acceleration with transform3d() or will-change
 - Keep animation duration under 300ms for UI feedback
@@ -107,7 +106,6 @@ alwaysApply: false
 - Support common touch gestures (tap, swipe, pinch)
 - Provide visual feedback during gesture recognition
 - Don't rely solely on gestures for core functionality
-- Test for conflicts with browser default gestures
 - Implement gesture timeouts for failed attempts
 
 ## Navigation Patterns
@@ -165,4 +163,3 @@ alwaysApply: false
 - Implement virtual scrolling for large lists
 - Batch DOM updates when possible
 - Optimize CSS selectors for performance
-

@@ -8,7 +8,7 @@ alwaysApply: false
 
 ## Testing Strategy and Organization
 
-### Test Pyramid Structure
+### Test Pyramid Structure (Testing Pyramid)
 - Write more unit tests than integration tests, more integration than e2e tests
 - Focus unit tests on business logic and pure functions
 - Use integration tests for component interactions
@@ -24,7 +24,7 @@ alwaysApply: false
 
 ## Component Testing Best Practices
 
-### Testing User Interactions
+### Testing User Interactions (User-Centric Testing)
 - Test components from user perspective
 - Focus on behavior rather than implementation
 - Use accessible queries (getByRole, getByLabelText)
@@ -56,7 +56,7 @@ alwaysApply: false
 
 ## Code Quality Standards
 
-### Code Organization and Structure
+### Code Organization and Structure (Single Responsibility)
 - Use consistent file and folder naming conventions
 - Group related functionality together
 - Keep functions small and focused (single responsibility)
@@ -79,8 +79,11 @@ alwaysApply: false
 - Log errors with sufficient context for debugging
 - Implement fallback mechanisms
 
-### Debugging and Development Tools
-- Implement helpful development warnings
-- Add debug logging for complex operations
-- Use meaningful variable names and comments
-- Create debugging utilities for testing
+### Systematic Logging and Debugging
+- Create consistent logging patterns for development and production
+- Log user interactions and state changes during development
+- Use structured logging with consistent data formats
+- Implement debug modes that can be toggled during development
+- Write debugging utilities that help trace component behavior
+- Add meaningful console.log statements for complex operations during development
+- Use descriptive variable names and comments
