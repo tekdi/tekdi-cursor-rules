@@ -1,5 +1,5 @@
 ---
-description: USE WHEN when handling application state and data flow for efficient, predictable data and state management
+description: USE WHEN handling application state and data flow for efficient, predictable data and state management
 globs: ["**/*"]
 alwaysApply: false
 ---

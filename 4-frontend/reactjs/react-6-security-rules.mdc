@@ -1,0 +1,571 @@
+---
+description: USE WHEN securing frontend applications that protect both your users and your systems from common web security threats protect your applications and users from common security vulnerabilities
+globs: ["**/*"]
+alwaysApply: false
+---
+
+# React Security Rules
+
+## React Input Security and XSS Prevention
+
+### JSX and dangerouslySetInnerHTML Security
+- Avoid using `dangerouslySetInnerHTML` with user-generated content
+- Sanitize HTML content before rendering
+- Use React's built-in XSS protection through proper JSX
+- Validate and escape user input in React components
+
+```tsx
+import DOMPurify from 'dompurify';
+
+// Bad: Direct HTML injection - XSS vulnerability
+const UnsafeComponent: React.FC<{ userContent: string }> = ({ userContent }) => {
+  return (
+    <div dangerouslySetInnerHTML={{ __html: userContent }} />
+  );
+};
+
+// Good: Sanitized HTML rendering
+const SafeHTMLComponent: React.FC<{ userContent: string }> = ({ userContent }) => {
+  const sanitizedContent = useMemo(() => {
+    return DOMPurify.sanitize(userContent, {
+      ALLOWED_TAGS: ['p', 'strong', 'em', 'ul', 'ol', 'li'],
+      ALLOWED_ATTR: []
+    });
+  }, [userContent]);
+
+  return (
+    <div dangerouslySetInnerHTML={{ __html: sanitizedContent }} />
+  );
+};
+
+// Best: Use React's built-in escaping
+const SafeComponent: React.FC<{ userContent: string }> = ({ userContent }) => {
+  return (
+    <div>
+      {userContent} {/* React automatically escapes this */}
+    </div>
+  );
+};
+
+// Input sanitization hook
+export const useSanitizedInput = (initialValue: string = '') => {
+  const [value, setValue] = useState(initialValue);
+
+  const updateValue = useCallback((newValue: string) => {
+    // Basic input sanitization
+    const sanitized = newValue
+      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+      .replace(/javascript:/gi, '')
+      .replace(/on\w+\s*=/gi, '');
+    
+    setValue(sanitized);
+  }, []);
+
+  return [value, updateValue] as const;
+};
+
+// Safe form input component
+interface SafeInputProps {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  maxLength?: number;
+  allowedChars?: RegExp;
+}
+
+export const SafeInput: React.FC<SafeInputProps> = ({
+  value,
+  onChange,
+  placeholder,
+  maxLength = 500,
+  allowedChars = /^[a-zA-Z0-9\s\-_@.]+$/
+}) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = e.target.value;
+    
+    // Length validation
+    if (newValue.length > maxLength) return;
+    
+    // Character validation
+    if (allowedChars && !allowedChars.test(newValue)) return;
+    
+    onChange(newValue);
+  };
+
+  return (
+    <input
+      type="text"
+      value={value}
+      onChange={handleChange}
+      placeholder={placeholder}
+      maxLength={maxLength}
+    />
+  );
+};
+```
+
+### URL and Link Safety
+- Validate external URLs before navigation
+- Prevent javascript: protocol attacks
+- Use rel="noopener noreferrer" for external links
+
+```tsx
+// URL validation utility
+export const isValidUrl = (url: string): boolean => {
+  try {
+    const parsedUrl = new URL(url);
+    return ['http:', 'https:', 'mailto:'].includes(parsedUrl.protocol);
+  } catch {
+    return false;
+  }
+};
+
+export const isSafeUrl = (url: string): boolean => {
+  if (!isValidUrl(url)) return false;
+  
+  const dangerousProtocols = ['javascript:', 'data:', 'vbscript:'];
+  return !dangerousProtocols.some(protocol => 
+    url.toLowerCase().startsWith(protocol)
+  );
+};
+
+// Safe link component
+interface SafeLinkProps {
+  href: string;
+  children: React.ReactNode;
+  external?: boolean;
+  className?: string;
+}
+
+export const SafeLink: React.FC<SafeLinkProps> = ({ 
+  href, 
+  children, 
+  external = false,
+  className 
+}) => {
+  if (!isSafeUrl(href)) {
+    console.warn(`Blocked potentially unsafe URL: ${href}`);
+    return <span className={className}>{children}</span>;
+  }
+
+  if (external || !href.startsWith('/')) {
+    return (
+      <a 
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={className}
+      >
+        {children}
+      </a>
+    );
+  }
+
+  return (
+    <a href={href} className={className}>
+      {children}
+    </a>
+  );
+};
+
+// Safe navigation hook
+export const useSafeNavigation = () => {
+  const navigate = useNavigate();
+
+  const safeNavigate = useCallback((to: string) => {
+    if (isSafeUrl(to) || to.startsWith('/')) {
+      navigate(to);
+    } else {
+      console.warn(`Blocked navigation to potentially unsafe URL: ${to}`);
+    }
+  }, [navigate]);
+
+  return safeNavigate;
+};
+```
+
+## React Authentication and Authorization
+
+### Secure Token Handling in React
+- Store authentication tokens securely
+- Implement proper token refresh mechanisms
+- Handle authentication state changes
+
+```tsx
+interface AuthState {
+  user: User | null;
+  accessToken: string | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+}
+
+// Secure token storage utility
+class SecureTokenStorage {
+  private static readonly ACCESS_TOKEN_KEY = 'access_token';
+
+  static setTokens(accessToken: string, refreshToken: string) {
+    // Store access token in memory (more secure)
+    sessionStorage.setItem(this.ACCESS_TOKEN_KEY, accessToken);
+    
+    // Store refresh token in httpOnly cookie (most secure)
+    // This would typically be set by the server
+    document.cookie = `refresh_token=${refreshToken}; Secure; HttpOnly; SameSite=Strict`;
+  }
+
+  static getAccessToken(): string | null {
+    return sessionStorage.getItem(this.ACCESS_TOKEN_KEY);
+  }
+
+  static clearTokens() {
+    sessionStorage.removeItem(this.ACCESS_TOKEN_KEY);
+    document.cookie = `refresh_token=; expires=Thu, 01 Jan 1970 00:00:00 GMT; Secure; HttpOnly; SameSite=Strict`;
+  }
+}
+
+// Authentication context with security best practices
+export const useAuth = () => {
+  const [authState, setAuthState] = useState<AuthState>({
+    user: null,
+    accessToken: null,
+    isAuthenticated: false,
+    isLoading: true
+  });
+
+  const login = useCallback(async (email: string, password: string) => {
+    setAuthState(prev => ({ ...prev, isLoading: true }));
+
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ email, password })
+      });
+
+      if (response.ok) {
+        const { accessToken, refreshToken, user } = await response.json();
+        SecureTokenStorage.setTokens(accessToken, refreshToken);
+        
+        setAuthState({
+          user,
+          accessToken,
+          isAuthenticated: true,
+          isLoading: false
+        });
+      } else {
+        const error = await response.json();
+        throw new Error(error.message);
+      }
+    } catch (error) {
+      setAuthState({
+        user: null,
+        accessToken: null,
+        isAuthenticated: false,
+        isLoading: false
+      });
+      throw error;
+    }
+  }, []);
+
+  const logout = useCallback(() => {
+    SecureTokenStorage.clearTokens();
+    setAuthState({
+      user: null,
+      accessToken: null,
+      isAuthenticated: false,
+      isLoading: false
+    });
+    
+    // Clear any cached data
+    window.location.href = '/login';
+  }, []);
+
+  return {
+    ...authState,
+    login,
+    logout
+  };
+};
+
+// Protected route component
+interface ProtectedRouteProps {
+  children: React.ReactNode;
+  requiredRole?: string;
+  fallback?: React.ReactNode;
+}
+
+export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
+  children,
+  requiredRole,
+  fallback = <Navigate to="/login" />
+}) => {
+  const { isAuthenticated, user, isLoading } = useAuth();
+
+  if (isLoading) {
+    return <div>Loading...</div>;
+  }
+
+  if (!isAuthenticated) {
+    return <>{fallback}</>;
+  }
+
+  if (requiredRole && user?.role !== requiredRole) {
+    return <div>Access denied</div>;
+  }
+
+  return <>{children}</>;
+};
+```
+
+## React Form Security
+
+### Secure Form Handling
+- Implement proper form validation
+- Use CSRF protection for form submissions
+- Handle sensitive data securely
+
+```tsx
+import { z } from 'zod';
+
+// Secure form validation schemas
+const loginSchema = z.object({
+  email: z.string()
+    .email('Invalid email format')
+    .max(254, 'Email too long'),
+  password: z.string()
+    .min(8, 'Password must be at least 8 characters')
+    .max(128, 'Password too long')
+    .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, 'Password must contain uppercase, lowercase, and number')
+});
+
+// CSRF token hook
+export const useCSRFToken = () => {
+  const [csrfToken, setCSRFToken] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchCSRFToken = async () => {
+      try {
+        const response = await fetch('/api/csrf-token');
+        const { token } = await response.json();
+        setCSRFToken(token);
+      } catch (error) {
+        console.error('Failed to fetch CSRF token:', error);
+      }
+    };
+
+    fetchCSRFToken();
+  }, []);
+
+  return csrfToken;
+};
+
+// Secure form component
+interface SecureLoginFormProps {
+  onLogin: (credentials: { email: string; password: string }) => Promise<void>;
+}
+
+export const SecureLoginForm: React.FC<SecureLoginFormProps> = ({ onLogin }) => {
+  const csrfToken = useCSRFToken();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors: formErrors },
+    reset
+  } = useForm<z.infer<typeof loginSchema>>({
+    resolver: zodResolver(loginSchema)
+  });
+
+  const onSubmit = async (data: z.infer<typeof loginSchema>) => {
+    if (!csrfToken) {
+      setErrors({ submit: 'Security token not available. Please refresh the page.' });
+      return;
+    }
+
+    setIsSubmitting(true);
+    setErrors({});
+
+    try {
+      await onLogin(data);
+      reset(); // Clear form on success
+    } catch (error) {
+      setErrors({ 
+        submit: error instanceof Error ? error.message : 'Login failed' 
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      {/* CSRF token */}
+      <input type="hidden" name="_token" value={csrfToken || ''} />
+      
+      <div>
+        <label htmlFor="email">Email</label>
+        <input
+          {...register('email')}
+          type="email"
+          id="email"
+          autoComplete="email"
+          className="w-full p-2 border rounded"
+          disabled={isSubmitting}
+        />
+        {formErrors.email && (
+          <span className="text-red-500 text-sm">{formErrors.email.message}</span>
+        )}
+      </div>
+
+      <div>
+        <label htmlFor="password">Password</label>
+        <input
+          {...register('password')}
+          type="password"
+          id="password"
+          autoComplete="current-password"
+          className="w-full p-2 border rounded"
+          disabled={isSubmitting}
+        />
+        {formErrors.password && (
+          <span className="text-red-500 text-sm">{formErrors.password.message}</span>
+        )}
+      </div>
+
+      {errors.submit && (
+        <div className="text-red-500 text-sm">{errors.submit}</div>
+      )}
+
+      <button
+        type="submit"
+        disabled={isSubmitting || !csrfToken}
+        className="w-full py-2 bg-blue-500 text-white rounded disabled:opacity-50"
+      >
+        {isSubmitting ? 'Signing in...' : 'Sign In'}
+      </button>
+    </form>
+  );
+};
+
+// Rate limiting hook for forms
+export const useRateLimit = (maxAttempts: number = 5, windowMs: number = 15 * 60 * 1000) => {
+  const [attempts, setAttempts] = useState<number[]>([]);
+
+  const isRateLimited = useMemo(() => {
+    const now = Date.now();
+    const recentAttempts = attempts.filter(time => now - time < windowMs);
+    return recentAttempts.length >= maxAttempts;
+  }, [attempts, maxAttempts, windowMs]);
+
+  const recordAttempt = useCallback(() => {
+    const now = Date.now();
+    setAttempts(prev => [...prev.filter(time => now - time < windowMs), now]);
+  }, [windowMs]);
+
+  const resetAttempts = useCallback(() => {
+    setAttempts([]);
+  }, []);
+
+  return { isRateLimited, recordAttempt, resetAttempts };
+};
+```
+
+## Secure API Communication
+
+### Request Security
+- Implement proper request headers
+- Handle sensitive data in API calls
+- Use proper authentication headers
+
+```tsx
+// Secure API client
+class SecureApiClient {
+  private baseURL: string;
+  private getAuthToken: () => string | null;
+
+  constructor(baseURL: string, getAuthToken: () => string | null) {
+    this.baseURL = baseURL;
+    this.getAuthToken = getAuthToken;
+  }
+
+  private async makeRequest<T>(
+    endpoint: string,
+    options: RequestInit = {}
+  ): Promise<T> {
+    const token = this.getAuthToken();
+    
+    const config: RequestInit = {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token && { Authorization: `Bearer ${token}` }),
+        'X-Requested-With': 'XMLHttpRequest', // CSRF protection
+        ...options.headers
+      },
+      credentials: 'include' // Include cookies for additional security
+    };
+
+    const response = await fetch(`${this.baseURL}${endpoint}`, config);
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `HTTP ${response.status}`);
+    }
+
+    return response.json();
+  }
+
+  async get<T>(endpoint: string): Promise<T> {
+    return this.makeRequest<T>(endpoint, { method: 'GET' });
+  }
+
+  async post<T>(endpoint: string, data: any): Promise<T> {
+    return this.makeRequest<T>(endpoint, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  }
+}
+
+// React hook for secure API calls
+export const useSecureApi = () => {
+  const { accessToken } = useAuth();
+  
+  const apiClient = useMemo(() => {
+    return new SecureApiClient(
+      process.env.REACT_APP_API_URL || '/api',
+      () => accessToken
+    );
+  }, [accessToken]);
+
+  return apiClient;
+};
+
+// Data masking for sensitive information
+export const useSensitiveData = () => {
+  const maskEmail = useCallback((email: string): string => {
+    const [localPart, domain] = email.split('@');
+    if (localPart.length <= 2) return email;
+    
+    const masked = localPart.slice(0, 2) + '*'.repeat(localPart.length - 2);
+    return `${masked}@${domain}`;
+  }, []);
+
+  const maskCreditCard = useCallback((cardNumber: string): string => {
+    const cleaned = cardNumber.replace(/\D/g, '');
+    if (cleaned.length < 4) return cardNumber;
+    
+    return '*'.repeat(cleaned.length - 4) + cleaned.slice(-4);
+  }, []);
+
+  const maskSSN = useCallback((ssn: string): string => {
+    const cleaned = ssn.replace(/\D/g, '');
+    if (cleaned.length !== 9) return ssn;
+    
+    return `***-**-${cleaned.slice(-4)}`;
+  }, []);
+
+  return { maskEmail, maskCreditCard, maskSSN };
+};

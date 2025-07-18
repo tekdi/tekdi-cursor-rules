@@ -1,0 +1,500 @@
+---
+description: USE WHEN handling application state and data flow for efficient, predictable data and state management
+globs: ["**/*"]
+alwaysApply: false
+---
+
+# React Data & State Management Rules
+
+## React State Management Principles
+
+### State Ownership and Boundaries
+- Keep state as close to its usage as possible with `useState`
+- Lift state up only when multiple components genuinely need access
+- Avoid prop drilling beyond 2-3 component levels
+- Use React Context for deeply nested sharing, custom hooks for logic reuse
+
+```tsx
+// Good: State close to usage
+const TodoItem: React.FC<{ todo: Todo; onToggle: (id: string) => void }> = ({ todo, onToggle }) => {
+  const [isHovered, setIsHovered] = useState(false);
+
+  return (
+    <div 
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      <input 
+        type="checkbox" 
+        checked={todo.completed}
+        onChange={() => onToggle(todo.id)}
+      />
+      {todo.text}
+      {isHovered && <button>Delete</button>}
+    </div>
+  );
+};
+
+// Good: Lifted state for sharing
+const TodoApp: React.FC = () => {
+  const [todos, setTodos] = useState<Todo[]>([]);
+
+  const toggleTodo = (id: string) => {
+    setTodos(todos.map(todo => 
+      todo.id === id ? { ...todo, completed: !todo.completed } : todo
+    ));
+  };
+
+  return (
+    <div>
+      <TodoList todos={todos} onToggle={toggleTodo} />
+      <TodoStats todos={todos} />
+    </div>
+  );
+};
+```
+
+### Immutability Patterns with React State
+- Always use functional updates with `useState` and `useReducer`
+- Never mutate existing state objects directly
+- Use spread operators for updates
+
+```tsx
+const UserProfile: React.FC = () => {
+  const [user, setUser] = useState<User>({
+    name: '',
+    email: '',
+    preferences: { theme: 'light', notifications: true }
+  });
+
+  const updateName = (name: string) => {
+    setUser(prevUser => ({ ...prevUser, name }));
+  };
+
+  const updatePreferences = (newPreferences: Partial<UserPreferences>) => {
+    setUser(prevUser => ({
+      ...prevUser,
+      preferences: { ...prevUser.preferences, ...newPreferences }
+    }));
+  };
+
+  const toggleNotifications = () => {
+    setUser(prevUser => ({
+      ...prevUser,
+      preferences: {
+        ...prevUser.preferences,
+        notifications: !prevUser.preferences.notifications
+      }
+    }));
+  };
+
+  return (
+    <form>
+      <input value={user.name} onChange={(e) => updateName(e.target.value)} />
+      <button type="button" onClick={toggleNotifications}>
+        {user.preferences.notifications ? 'Disable' : 'Enable'} Notifications
+      </button>
+    </form>
+  );
+};
+```
+
+### State Types and Separation
+- Distinguish between UI state and business/domain state
+- Use local state for UI concerns, global state for shared data
+- Handle server state with React Query/TanStack Query
+- Compute derived state with `useMemo`
+
+```tsx
+// UI State - local to component
+const SearchBox: React.FC<{ onSearch: (query: string) => void }> = ({ onSearch }) => {
+  const [query, setQuery] = useState('');
+  const [isFocused, setIsFocused] = useState(false);
+
+  return (
+    <input
+      value={query}
+      onChange={(e) => setQuery(e.target.value)}
+      onFocus={() => setIsFocused(true)}
+      onBlur={() => setIsFocused(false)}
+      onKeyPress={(e) => e.key === 'Enter' && onSearch(query)}
+    />
+  );
+};
+
+// Business State - shared across components
+const useUserPreferences = () => {
+  const [preferences, setPreferences] = useState<UserPreferences>(() => {
+    const saved = localStorage.getItem('userPreferences');
+    return saved ? JSON.parse(saved) : defaultPreferences;
+  });
+
+  const updatePreferences = useCallback((updates: Partial<UserPreferences>) => {
+    setPreferences(prev => {
+      const newPreferences = { ...prev, ...updates };
+      localStorage.setItem('userPreferences', JSON.stringify(newPreferences));
+      return newPreferences;
+    });
+  }, []);
+
+  return { preferences, updatePreferences };
+};
+
+// Derived State with useMemo
+const UserList: React.FC<{ searchQuery: string }> = ({ searchQuery }) => {
+  const { data: users = [] } = useUsers();
+
+  const filteredUsers = useMemo(() => {
+    return users.filter(user => 
+      user.name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [users, searchQuery]);
+
+  const userCount = useMemo(() => ({
+    total: users.length,
+    active: users.filter(user => user.isActive).length,
+    filtered: filteredUsers.length
+  }), [users, filteredUsers]);
+
+  return (
+    <div>
+      <p>Showing {userCount.filtered} of {userCount.total} users</p>
+      {filteredUsers.map(user => (
+        <UserCard key={user.id} user={user} />
+      ))}
+    </div>
+  );
+};
+```
+
+## React Data Flow Architecture
+
+### Unidirectional Data Flow with Hooks
+- Data flows down through props
+- Events flow up through callback props
+- Use custom hooks to encapsulate stateful logic
+
+```tsx
+// Custom hook for managing todo logic
+const useTodos = () => {
+  const [todos, setTodos] = useState<Todo[]>([]);
+
+  const addTodo = useCallback((text: string) => {
+    const newTodo: Todo = {
+      id: Date.now().toString(),
+      text,
+      completed: false,
+      createdAt: new Date()
+    };
+    setTodos(prev => [...prev, newTodo]);
+  }, []);
+
+  const toggleTodo = useCallback((id: string) => {
+    setTodos(prev => prev.map(todo =>
+      todo.id === id ? { ...todo, completed: !todo.completed } : todo
+    ));
+  }, []);
+
+  const deleteTodo = useCallback((id: string) => {
+    setTodos(prev => prev.filter(todo => todo.id !== id));
+  }, []);
+
+  const completedCount = useMemo(() => 
+    todos.filter(todo => todo.completed).length, [todos]
+  );
+
+  return {
+    todos,
+    addTodo,
+    toggleTodo,
+    deleteTodo,
+    completedCount,
+    totalCount: todos.length
+  };
+};
+
+// Component using the custom hook
+const TodoApp: React.FC = () => {
+  const { todos, addTodo, toggleTodo, deleteTodo, completedCount, totalCount } = useTodos();
+
+  return (
+    <div>
+      <TodoForm onSubmit={addTodo} />
+      <TodoList todos={todos} onToggle={toggleTodo} onDelete={deleteTodo} />
+      <TodoStats completed={completedCount} total={totalCount} />
+    </div>
+  );
+};
+```
+
+### Complex State with useReducer
+- Use `useReducer` for complex state with multiple actions
+- Implement action creators for type safety
+- Keep reducer functions pure and predictable
+
+```tsx
+interface TodoState {
+  todos: Todo[];
+  filter: 'all' | 'active' | 'completed';
+  isLoading: boolean;
+  error: string | null;
+}
+
+type TodoAction =
+  | { type: 'ADD_TODO'; payload: { text: string } }
+  | { type: 'TOGGLE_TODO'; payload: { id: string } }
+  | { type: 'DELETE_TODO'; payload: { id: string } }
+  | { type: 'SET_FILTER'; payload: { filter: TodoState['filter'] } }
+  | { type: 'SET_LOADING'; payload: { isLoading: boolean } }
+  | { type: 'SET_ERROR'; payload: { error: string | null } };
+
+const todoReducer = (state: TodoState, action: TodoAction): TodoState => {
+  switch (action.type) {
+    case 'ADD_TODO':
+      return {
+        ...state,
+        todos: [...state.todos, {
+          id: Date.now().toString(),
+          text: action.payload.text,
+          completed: false,
+          createdAt: new Date()
+        }]
+      };
+
+    case 'TOGGLE_TODO':
+      return {
+        ...state,
+        todos: state.todos.map(todo =>
+          todo.id === action.payload.id 
+            ? { ...todo, completed: !todo.completed }
+            : todo
+        )
+      };
+
+    case 'SET_FILTER':
+      return { ...state, filter: action.payload.filter };
+
+    default:
+      return state;
+  }
+};
+
+// Action creators for type safety
+const todoActions = {
+  addTodo: (text: string): TodoAction => ({ 
+    type: 'ADD_TODO', 
+    payload: { text } 
+  }),
+  toggleTodo: (id: string): TodoAction => ({ 
+    type: 'TOGGLE_TODO', 
+    payload: { id } 
+  }),
+  setFilter: (filter: TodoState['filter']): TodoAction => ({ 
+    type: 'SET_FILTER', 
+    payload: { filter } 
+  })
+};
+
+const useTodoReducer = () => {
+  const [state, dispatch] = useReducer(todoReducer, {
+    todos: [],
+    filter: 'all',
+    isLoading: false,
+    error: null
+  });
+
+  const actions = useMemo(() => ({
+    addTodo: (text: string) => dispatch(todoActions.addTodo(text)),
+    toggleTodo: (id: string) => dispatch(todoActions.toggleTodo(id)),
+    setFilter: (filter: TodoState['filter']) => dispatch(todoActions.setFilter(filter))
+  }), []);
+
+  return { state, actions };
+};
+```
+
+## React Context for Global State
+
+### Context Provider Pattern
+- Use React Context for truly global state
+- Create typed context with custom hooks
+- Split contexts by concern to avoid unnecessary re-renders
+
+```tsx
+interface AuthUser {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+}
+
+interface AuthContextType {
+  user: AuthUser | null;
+  login: (email: string, password: string) => Promise<void>;
+  logout: () => void;
+  isLoading: boolean;
+  error: string | null;
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};
+
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const login = useCallback(async (email: string, password: string) => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const response = await authApi.login({ email, password });
+      setUser(response.user);
+      localStorage.setItem('authToken', response.token);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Login failed');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const logout = useCallback(() => {
+    setUser(null);
+    localStorage.removeItem('authToken');
+  }, []);
+
+  const value = useMemo(() => ({
+    user,
+    login,
+    logout,
+    isLoading,
+    error
+  }), [user, login, logout, isLoading, error]);
+
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
+```
+
+## React State Persistence
+
+### Local Storage with React Hooks
+- Persist critical user state across browser sessions
+- Use custom hooks for localStorage integration
+
+```tsx
+const useLocalStorage = <T>(
+  key: string,
+  initialValue: T
+): [T, (value: T | ((prev: T) => T)) => void] => {
+  const [storedValue, setStoredValue] = useState<T>(() => {
+    try {
+      const item = window.localStorage.getItem(key);
+      return item ? JSON.parse(item) : initialValue;
+    } catch (error) {
+      console.error(`Error reading localStorage key "${key}":`, error);
+      return initialValue;
+    }
+  });
+
+  const setValue = useCallback((value: T | ((prev: T) => T)) => {
+    try {
+      const valueToStore = value instanceof Function ? value(storedValue) : value;
+      setStoredValue(valueToStore);
+      window.localStorage.setItem(key, JSON.stringify(valueToStore));
+    } catch (error) {
+      console.error(`Error setting localStorage key "${key}":`, error);
+    }
+  }, [key, storedValue]);
+
+  return [storedValue, setValue];
+};
+
+// Usage example
+const UserPreferences: React.FC = () => {
+  const [preferences, setPreferences] = useLocalStorage('userPreferences', {
+    theme: 'light' as 'light' | 'dark',
+    language: 'en',
+    notifications: true
+  });
+
+  const toggleTheme = () => {
+    setPreferences(prev => ({
+      ...prev,
+      theme: prev.theme === 'light' ? 'dark' : 'light'
+    }));
+  };
+
+  return (
+    <div>
+      <button onClick={toggleTheme}>
+        Switch to {preferences.theme === 'light' ? 'dark' : 'light'} theme
+      </button>
+    </div>
+  );
+};
+```
+
+### Session Management with React
+- Handle authentication state changes
+- Implement proper state hydration after page refresh
+
+```tsx
+const useSessionManagement = () => {
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
+
+  // Check authentication status on app load
+  useEffect(() => {
+    const checkAuthStatus = async () => {
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        setIsAuthenticated(false);
+        return;
+      }
+
+      try {
+        const response = await authApi.verifyToken(token);
+        setUser(response.user);
+        setIsAuthenticated(true);
+      } catch (error) {
+        localStorage.removeItem('authToken');
+        setIsAuthenticated(false);
+      }
+    };
+
+    checkAuthStatus();
+  }, []);
+
+  const login = useCallback(async (credentials: LoginCredentials) => {
+    const response = await authApi.login(credentials);
+    localStorage.setItem('authToken', response.token);
+    setUser(response.user);
+    setIsAuthenticated(true);
+  }, []);
+
+  const logout = useCallback(() => {
+    localStorage.removeItem('authToken');
+    setUser(null);
+    setIsAuthenticated(false);
+  }, []);
+
+  return {
+    isAuthenticated,
+    user,
+    login,
+    logout,
+    isLoading: isAuthenticated === null
+  };
+};

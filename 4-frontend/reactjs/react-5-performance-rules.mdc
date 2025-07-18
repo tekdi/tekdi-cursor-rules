@@ -1,0 +1,501 @@
+---
+description: USE WHEN optimizing for speed, efficiency, and user experience while maintaining the performance optimization principles
+globs: ["**/*"]
+alwaysApply: false
+---
+
+# React Performance Optimization Rules
+
+## React Component Optimization
+
+### Rendering Optimization with React.memo and Hooks
+- Use `React.memo` for components that receive stable props
+- Implement `useMemo` and `useCallback` for expensive computations
+- Avoid creating objects and functions during render
+- Use proper key props for list rendering
+
+```tsx
+interface UserCardProps {
+  user: User;
+  onEdit: (user: User) => void;
+  isSelected: boolean;
+}
+
+const UserCard = React.memo<UserCardProps>(({ user, onEdit, isSelected }) => {
+  // Expensive computation memoized
+  const formattedData = useMemo(() => {
+    return {
+      fullName: `${user.firstName} ${user.lastName}`,
+      memberSince: new Date(user.createdAt).getFullYear(),
+      initials: `${user.firstName[0]}${user.lastName[0]}`
+    };
+  }, [user.firstName, user.lastName, user.createdAt]);
+
+  // Callback memoized to prevent unnecessary re-renders
+  const handleEdit = useCallback(() => {
+    onEdit(user);
+  }, [onEdit, user]);
+
+  return (
+    <div className={cn('user-card', isSelected && 'selected')}>
+      <div className="avatar">{formattedData.initials}</div>
+      <div>
+        <h3>{formattedData.fullName}</h3>
+        <p>Member since {formattedData.memberSince}</p>
+      </div>
+      <button onClick={handleEdit}>Edit</button>
+    </div>
+  );
+}, (prevProps, nextProps) => {
+  // Custom comparison for complex props
+  return (
+    prevProps.user.id === nextProps.user.id &&
+    prevProps.user.firstName === nextProps.user.firstName &&
+    prevProps.user.lastName === nextProps.user.lastName &&
+    prevProps.isSelected === nextProps.isSelected &&
+    prevProps.onEdit === nextProps.onEdit
+  );
+});
+
+UserCard.displayName = 'UserCard';
+
+// Good: Optimized list rendering
+interface UserListProps {
+  users: User[];
+  selectedIds: Set<string>;
+  onEditUser: (user: User) => void;
+}
+
+export const UserList: React.FC<UserListProps> = ({ users, selectedIds, onEditUser }) => {
+  // Memoize the callback to prevent UserCard re-renders
+  const memoizedOnEdit = useCallback((user: User) => {
+    onEditUser(user);
+  }, [onEditUser]);
+
+  return (
+    <div className="user-list">
+      {users.map((user) => (
+        <UserCard
+          key={user.id} // Stable key
+          user={user}
+          isSelected={selectedIds.has(user.id)}
+          onEdit={memoizedOnEdit}
+        />
+      ))}
+    </div>
+  );
+};
+```
+
+### Avoiding Common Performance Anti-patterns
+- Don't create objects or functions in render
+- Don't use array indices as keys for dynamic lists
+- Avoid unnecessary useEffect dependencies
+
+```tsx
+// Bad: Creating objects in render
+const BadComponent: React.FC<{ user: User }> = ({ user }) => {
+  return (
+    <UserProfile 
+      user={user}
+      style={{ padding: 16, margin: 8 }} // New object on every render
+      onSave={() => saveUser(user)} // New function on every render
+    />
+  );
+};
+
+// Good: Stable references
+const GoodComponent: React.FC<{ user: User }> = ({ user }) => {
+  const style = useMemo(() => ({ padding: 16, margin: 8 }), []);
+  const handleSave = useCallback(() => saveUser(user), [user]);
+
+  return (
+    <UserProfile 
+      user={user}
+      style={style}
+      onSave={handleSave}
+    />
+  );
+};
+
+// Bad: Using array index as key
+const BadList: React.FC<{ items: Item[] }> = ({ items }) => (
+  <ul>
+    {items.map((item, index) => (
+      <li key={index}>{item.name}</li> // Causes unnecessary re-renders
+    ))}
+  </ul>
+);
+
+// Good: Using stable unique key
+const GoodList: React.FC<{ items: Item[] }> = ({ items }) => (
+  <ul>
+    {items.map((item) => (
+      <li key={item.id}>{item.name}</li>
+    ))}
+  </ul>
+);
+```
+
+## Code Splitting and Lazy Loading
+
+### Route-Based Code Splitting
+- Split code by routes and features to reduce initial bundle size
+- Use `React.lazy` and `Suspense` for component lazy loading
+
+```tsx
+import { lazy, Suspense } from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+
+// Lazy load route components
+const HomePage = lazy(() => import('../pages/HomePage'));
+const UserProfilePage = lazy(() => import('../pages/UserProfilePage'));
+const AdminDashboard = lazy(() => import('../pages/AdminDashboard'));
+
+// Loading component for suspense
+const PageLoadingSpinner: React.FC = () => (
+  <div className="flex justify-center items-center min-h-screen">
+    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500" />
+    <span className="ml-3 text-lg">Loading...</span>
+  </div>
+);
+
+// App with code splitting
+export const App: React.FC = () => {
+  return (
+    <BrowserRouter>
+      <Suspense fallback={<PageLoadingSpinner />}>
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/profile/:id" element={<UserProfilePage />} />
+          <Route path="/admin" element={<AdminDashboard />} />
+        </Routes>
+      </Suspense>
+    </BrowserRouter>
+  );
+};
+
+// Component-level lazy loading
+const LazyModal = lazy(() => import('./Modal'));
+
+export const FeatureComponent: React.FC = () => {
+  const [showModal, setShowModal] = useState(false);
+
+  return (
+    <div>
+      <button onClick={() => setShowModal(true)}>Open Modal</button>
+      
+      {showModal && (
+        <Suspense fallback={<div>Loading modal...</div>}>
+          <LazyModal onClose={() => setShowModal(false)} />
+        </Suspense>
+      )}
+    </div>
+  );
+};
+```
+
+### Dynamic Imports for Features
+- Load components on demand based on user interactions
+
+```tsx
+// Dynamic import hook
+const useDynamicImport = <T>(importFunc: () => Promise<{ default: T }>) => {
+  const [component, setComponent] = useState<T | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+
+  const loadComponent = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const module = await importFunc();
+      setComponent(module.default);
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error('Failed to load component'));
+    } finally {
+      setLoading(false);
+    }
+  }, [importFunc]);
+
+  return { component, loading, error, loadComponent };
+};
+
+// Usage example
+export const ConditionalFeature: React.FC = () => {
+  const { 
+    component: AdvancedChart, 
+    loading, 
+    error, 
+    loadComponent 
+  } = useDynamicImport(() => import('./AdvancedChart'));
+
+  const [showAdvanced, setShowAdvanced] = useState(false);
+
+  const handleShowAdvanced = () => {
+    setShowAdvanced(true);
+    if (!AdvancedChart) {
+      loadComponent();
+    }
+  };
+
+  return (
+    <div>
+      <button onClick={handleShowAdvanced}>Show Advanced Chart</button>
+      
+      {showAdvanced && (
+        <div>
+          {loading && <div>Loading advanced features...</div>}
+          {error && <div>Failed to load: {error.message}</div>}
+          {AdvancedChart && <AdvancedChart />}
+        </div>
+      )}
+    </div>
+  );
+};
+```
+
+## Virtual Scrolling and Large Lists
+
+### Virtual Scrolling Implementation
+- Use virtualization for large lists and tables
+- Implement efficient rendering for thousands of items
+
+```tsx
+import { FixedSizeList as List, VariableSizeList } from 'react-window';
+
+interface VirtualizedListProps<T> {
+  items: T[];
+  height: number;
+  itemHeight: number | ((index: number) => number);
+  renderItem: (props: { 
+    index: number; 
+    style: React.CSSProperties; 
+    data: T[];
+  }) => React.ReactElement;
+  overscanCount?: number;
+}
+
+export const VirtualizedList = <T,>({
+  items,
+  height,
+  itemHeight,
+  renderItem,
+  overscanCount = 5
+}: VirtualizedListProps<T>) => {
+  const ListComponent = typeof itemHeight === 'number' ? List : VariableSizeList;
+
+  return (
+    <ListComponent
+      height={height}
+      itemCount={items.length}
+      itemSize={itemHeight}
+      itemData={items}
+      overscanCount={overscanCount}
+    >
+      {renderItem}
+    </ListComponent>
+  );
+};
+
+// User list with virtualization
+const UserItemRenderer = ({ index, style, data }: any) => {
+  const user = data[index];
+  
+  return (
+    <div style={style} className="flex items-center p-3 border-b hover:bg-gray-50">
+      <div>
+        <div className="font-semibold">{user.name}</div>
+        <div className="text-gray-600 text-sm">{user.email}</div>
+      </div>
+    </div>
+  );
+};
+
+export const VirtualizedUserList: React.FC<{ users: User[] }> = ({ users }) => (
+  <div className="border rounded">
+    <VirtualizedList
+      items={users}
+      height={400}
+      itemHeight={64}
+      renderItem={UserItemRenderer}
+      overscanCount={10}
+    />
+  </div>
+);
+```
+
+## Image and Asset Optimization
+
+### Lazy Image Loading
+- Implement lazy loading for images below the fold
+- Use proper image formats and responsive images
+
+```tsx
+interface LazyImageProps {
+  src: string;
+  alt: string;
+  placeholder?: string;
+  className?: string;
+  width?: number;
+  height?: number;
+}
+
+export const LazyImage: React.FC<LazyImageProps> = ({
+  src,
+  alt,
+  placeholder,
+  className,
+  width,
+  height
+}) => {
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [isInView, setIsInView] = useState(false);
+  const imgRef = useRef<HTMLImageElement>(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsInView(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (imgRef.current) {
+      observer.observe(imgRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div className={cn('relative overflow-hidden', className)}>
+      {!isLoaded && placeholder && (
+        <div 
+          className="absolute inset-0 bg-gray-200 flex items-center justify-center"
+          style={{ width, height }}
+        >
+          <div className="text-gray-400">Loading...</div>
+        </div>
+      )}
+      
+      <img
+        ref={imgRef}
+        src={isInView ? src : placeholder}
+        alt={alt}
+        width={width}
+        height={height}
+        className={cn(
+          'transition-opacity duration-300',
+          isLoaded ? 'opacity-100' : 'opacity-0'
+        )}
+        onLoad={() => setIsLoaded(true)}
+        loading="lazy"
+      />
+    </div>
+  );
+};
+```
+
+## State and Re-render Optimization
+
+### Optimizing Context to Prevent Unnecessary Re-renders
+- Split contexts by concern to avoid unnecessary re-renders
+- Use context selectors for fine-grained subscriptions
+
+```tsx
+// Split contexts approach
+const UserContext = createContext<User | null>(null);
+const UserActionsContext = createContext<{
+  updateUser: (updates: Partial<User>) => void;
+  deleteUser: () => void;
+} | null>(null);
+
+export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [user, setUser] = useState<User | null>(null);
+
+  const actions = useMemo(() => ({
+    updateUser: (updates: Partial<User>) => {
+      setUser(prev => prev ? { ...prev, ...updates } : null);
+    },
+    deleteUser: () => {
+      setUser(null);
+    }
+  }), []);
+
+  return (
+    <UserContext.Provider value={user}>
+      <UserActionsContext.Provider value={actions}>
+        {children}
+      </UserActionsContext.Provider>
+    </UserContext.Provider>
+  );
+};
+
+// Context selector hook
+export const useUserSelector = <T>(selector: (user: User | null) => T) => {
+  const user = useContext(UserContext);
+  return useMemo(() => selector(user), [user, selector]);
+};
+
+// Usage - only re-renders when name changes
+const UserName: React.FC = () => {
+  const userName = useUserSelector(user => user?.name);
+  return <div>{userName}</div>;
+};
+```
+
+## Performance Monitoring
+
+### React Performance Monitoring
+- Add performance logging to components
+- Track render times and optimization opportunities
+
+```tsx
+// Performance monitoring hook
+export const usePerformanceMonitor = (componentName: string) => {
+  const renderStart = useRef<number>(Date.now());
+  const renderCount = useRef<number>(0);
+
+  useEffect(() => {
+    renderCount.current++;
+    const renderTime = Date.now() - renderStart.current;
+    
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`${componentName} render #${renderCount.current} took ${renderTime}ms`);
+    }
+    
+    renderStart.current = Date.now();
+  });
+
+  return renderCount.current;
+};
+
+// Component with performance monitoring
+export const MonitoredComponent: React.FC<{ data: any[] }> = ({ data }) => {
+  const renderCount = usePerformanceMonitor('MonitoredComponent');
+  
+  const expensiveCalculation = useMemo(() => {
+    const start = performance.now();
+    const result = data.reduce((acc, item) => acc + item.value, 0);
+    const end = performance.now();
+    
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`Expensive calculation took ${end - start}ms`);
+    }
+    
+    return result;
+  }, [data]);
+
+  return (
+    <div>
+      <p>Render count: {renderCount}</p>
+      <p>Total value: {expensiveCalculation}</p>
+    </div>
+  );
+};
+

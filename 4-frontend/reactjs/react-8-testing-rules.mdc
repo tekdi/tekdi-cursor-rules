@@ -1,0 +1,649 @@
+---
+description: USE WHEN writing test for ensuring testing and quality principles to build reliable, maintainable frontend applications with comprehensive test coverage and robust error handling
+globs: ["**/*"]
+alwaysApply: false
+---
+
+# React Testing & Quality Rules
+
+## React Testing Library Best Practices
+
+### User-Centric Testing with React Testing Library
+- Test components from the user's perspective
+- Use accessible queries (getByRole, getByLabelText)
+- Focus on behavior rather than implementation details
+- Test user interactions and state changes
+
+```tsx
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { UserProfile } from './UserProfile';
+import { mockUserService } from '../__mocks__/userService';
+
+// Good: User-centric testing
+describe('UserProfile', () => {
+  const defaultProps = {
+    userId: 'user-123',
+    userService: mockUserService,
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('should display user information when loaded', async () => {
+    const mockUser = {
+      id: 'user-123',
+      name: 'John Doe',
+      email: 'john.doe@example.com'
+    };
+    
+    mockUserService.getUser.mockResolvedValue(mockUser);
+
+    render(<UserProfile {...defaultProps} />);
+    
+    // Show loading state initially
+    expect(screen.getByText(/loading/i)).toBeInTheDocument();
+    
+    // Wait for user data to load
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'John Doe' })).toBeInTheDocument();
+    });
+    
+    expect(screen.getByText('john.doe@example.com')).toBeInTheDocument();
+    expect(mockUserService.getUser).toHaveBeenCalledWith('user-123');
+  });
+
+  it('should allow user to edit their profile', async () => {
+    const user = userEvent.setup();
+    const mockUser = {
+      id: 'user-123',
+      name: 'John Doe',
+      email: 'john.doe@example.com'
+    };
+    
+    mockUserService.getUser.mockResolvedValue(mockUser);
+    mockUserService.updateUser.mockResolvedValue({ ...mockUser, name: 'Jane Doe' });
+
+    render(<UserProfile {...defaultProps} />);
+    
+    // Wait for data to load
+    await screen.findByRole('heading', { name: 'John Doe' });
+    
+    // Click edit button
+    const editButton = screen.getByRole('button', { name: /edit/i });
+    await user.click(editButton);
+    
+    // Form should be visible
+    expect(screen.getByRole('form', { name: /edit profile/i })).toBeInTheDocument();
+    
+    // Change name
+    const nameInput = screen.getByLabelText(/name/i);
+    await user.clear(nameInput);
+    await user.type(nameInput, 'Jane Doe');
+    
+    // Submit form
+    const submitButton = screen.getByRole('button', { name: /save/i });
+    await user.click(submitButton);
+    
+    // Verify update was called
+    await waitFor(() => {
+      expect(mockUserService.updateUser).toHaveBeenCalledWith('user-123', {
+        name: 'Jane Doe'
+      });
+    });
+  });
+
+  it('should display error message when loading fails', async () => {
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+    mockUserService.getUser.mockRejectedValue(new Error('Network error'));
+
+    render(<UserProfile {...defaultProps} />);
+    
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent(/failed to load user/i);
+    });
+    
+    expect(screen.getByRole('button', { name: /try again/i })).toBeInTheDocument();
+    
+    consoleSpy.mockRestore();
+  });
+});
+```
+
+### Testing React Hooks
+- Test custom hooks in isolation
+- Use renderHook from React Testing Library
+- Test hook state changes and side effects
+
+```tsx
+import { renderHook, act } from '@testing-library/react';
+import { useCounter } from './useCounter';
+import { useApi } from './useApi';
+import { fetchUserData } from '../api/users';
+
+// Mock external dependencies
+jest.mock('../api/users');
+const mockFetchUserData = fetchUserData as jest.MockedFunction<typeof fetchUserData>;
+
+describe('useCounter', () => {
+  it('should initialize with default value', () => {
+    const { result } = renderHook(() => useCounter(0));
+    
+    expect(result.current.count).toBe(0);
+  });
+
+  it('should increment counter', () => {
+    const { result } = renderHook(() => useCounter(0));
+    
+    act(() => {
+      result.current.increment();
+    });
+    
+    expect(result.current.count).toBe(1);
+  });
+
+  it('should reset counter to initial value', () => {
+    const { result } = renderHook(() => useCounter(10));
+    
+    act(() => {
+      result.current.increment();
+      result.current.increment();
+    });
+    
+    expect(result.current.count).toBe(12);
+    
+    act(() => {
+      result.current.reset();
+    });
+    
+    expect(result.current.count).toBe(10);
+  });
+});
+
+describe('useApi', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('should handle successful API call', async () => {
+    const mockData = { id: '1', name: 'John' };
+    mockFetchUserData.mockResolvedValue(mockData);
+
+    const { result } = renderHook(() => useApi('/api/users/1', fetchUserData));
+    
+    expect(result.current.loading).toBe(true);
+    expect(result.current.data).toBe(null);
+    expect(result.current.error).toBe(null);
+
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0)); // Wait for effect
+    });
+
+    expect(result.current.loading).toBe(false);
+    expect(result.current.data).toEqual(mockData);
+    expect(result.current.error).toBe(null);
+  });
+
+  it('should handle API error', async () => {
+    const mockError = new Error('API Error');
+    mockFetchUserData.mockRejectedValue(mockError);
+
+    const { result } = renderHook(() => useApi('/api/users/1', fetchUserData));
+
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
+
+    expect(result.current.loading).toBe(false);
+    expect(result.current.data).toBe(null);
+    expect(result.current.error).toBe('API Error');
+  });
+});
+```
+
+## React Component Integration Testing
+
+### Testing Component Interactions
+- Test how components work together
+- Test data flow between parent and child components
+- Test context providers and consumers
+
+```tsx
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { BrowserRouter } from 'react-router-dom';
+import { AuthProvider } from '../contexts/AuthContext';
+import { TodoApp } from './TodoApp';
+
+// Test wrapper component
+const createWrapper = () => {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false },
+    },
+  });
+
+  return ({ children }: { children: React.ReactNode }) => (
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <AuthProvider>
+          {children}
+        </AuthProvider>
+      </BrowserRouter>
+    </QueryClientProvider>
+  );
+};
+
+describe('TodoApp Integration', () => {
+  it('should allow user to create, complete, and delete todos', async () => {
+    const user = userEvent.setup();
+    
+    render(<TodoApp />, { wrapper: createWrapper() });
+
+    // Initially no todos
+    expect(screen.getByText(/no todos yet/i)).toBeInTheDocument();
+
+    // Add a new todo
+    const input = screen.getByLabelText(/new todo/i);
+    const addButton = screen.getByRole('button', { name: /add todo/i });
+
+    await user.type(input, 'Learn React Testing');
+    await user.click(addButton);
+
+    // Todo should appear in list
+    expect(screen.getByText('Learn React Testing')).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: /mark.*complete/i })).toBeInTheDocument();
+
+    // Complete the todo
+    const checkbox = screen.getByRole('checkbox');
+    await user.click(checkbox);
+
+    expect(checkbox).toBeChecked();
+    expect(screen.getByText('Learn React Testing')).toHaveClass('completed');
+
+    // Delete the todo
+    const deleteButton = screen.getByRole('button', { name: /delete/i });
+    await user.click(deleteButton);
+
+    // Todo should be removed
+    expect(screen.queryByText('Learn React Testing')).not.toBeInTheDocument();
+    expect(screen.getByText(/no todos yet/i)).toBeInTheDocument();
+  });
+
+  it('should filter todos correctly', async () => {
+    const user = userEvent.setup();
+    
+    render(<TodoApp />, { wrapper: createWrapper() });
+
+    // Add multiple todos
+    const input = screen.getByLabelText(/new todo/i);
+    const addButton = screen.getByRole('button', { name: /add todo/i });
+
+    await user.type(input, 'Todo 1');
+    await user.click(addButton);
+
+    await user.clear(input);
+    await user.type(input, 'Todo 2');
+    await user.click(addButton);
+
+    // Complete first todo
+    const checkboxes = screen.getAllByRole('checkbox');
+    await user.click(checkboxes[0]);
+
+    // Test filters
+    const allFilter = screen.getByRole('button', { name: /all/i });
+    const activeFilter = screen.getByRole('button', { name: /active/i });
+    const completedFilter = screen.getByRole('button', { name: /completed/i });
+
+    // Filter to active only
+    await user.click(activeFilter);
+    expect(screen.queryByText('Todo 1')).not.toBeInTheDocument();
+    expect(screen.getByText('Todo 2')).toBeInTheDocument();
+
+    // Filter to completed only
+    await user.click(completedFilter);
+    expect(screen.getByText('Todo 1')).toBeInTheDocument();
+    expect(screen.queryByText('Todo 2')).not.toBeInTheDocument();
+  });
+});
+```
+
+## React Testing Utilities and Helpers
+
+### Custom Testing Utilities
+- Create reusable testing utilities
+- Mock external dependencies consistently
+- Set up test data factories
+
+```tsx
+// Testing utilities
+import { render, RenderOptions } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { BrowserRouter } from 'react-router-dom';
+import { ThemeProvider } from '../contexts/ThemeContext';
+
+// Custom render function with providers
+interface CustomRenderOptions extends Omit<RenderOptions, 'wrapper'> {
+  initialEntries?: string[];
+  queryClient?: QueryClient;
+}
+
+export const renderWithProviders = (
+  ui: React.ReactElement,
+  options: CustomRenderOptions = {}
+) => {
+  const {
+    initialEntries = ['/'],
+    queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    }),
+    ...renderOptions
+  } = options;
+
+  const Wrapper = ({ children }: { children: React.ReactNode }) => (
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <ThemeProvider>
+          {children}
+        </ThemeProvider>
+      </BrowserRouter>
+    </QueryClientProvider>
+  );
+
+  return {
+    ...render(ui, { wrapper: Wrapper, ...renderOptions }),
+    queryClient,
+  };
+};
+
+// Test data factories
+export const createMockUser = (overrides: Partial<User> = {}): User => ({
+  id: 'user-123',
+  name: 'John Doe',
+  email: 'john.doe@example.com',
+  role: 'user',
+  createdAt: new Date('2023-01-01'),
+  ...overrides,
+});
+
+export const createMockTodo = (overrides: Partial<Todo> = {}): Todo => ({
+  id: 'todo-123',
+  text: 'Sample todo',
+  completed: false,
+  userId: 'user-123',
+  createdAt: new Date('2023-01-01'),
+  ...overrides,
+});
+
+// Mock service creators
+export const createMockUserService = () => ({
+  getUser: jest.fn(),
+  updateUser: jest.fn(),
+  deleteUser: jest.fn(),
+  createUser: jest.fn(),
+});
+
+// Custom matchers
+expect.extend({
+  toBeAccessible(received: HTMLElement) {
+    const hasAriaLabel = received.hasAttribute('aria-label') || 
+                        received.hasAttribute('aria-labelledby');
+    const isButton = received.tagName === 'BUTTON';
+    const isInteractive = isButton || received.hasAttribute('tabindex');
+    
+    if (isInteractive && !hasAriaLabel && !received.textContent?.trim()) {
+      return {
+        message: () => `Expected interactive element to have accessible name`,
+        pass: false,
+      };
+    }
+
+    return {
+      message: () => `Expected element to be accessible`,
+      pass: true,
+    };
+  },
+});
+
+// Accessibility testing utilities
+export const testAccessibility = async (component: React.ReactElement) => {
+  const { container } = renderWithProviders(component);
+  
+  // Check for common accessibility issues
+  const images = container.querySelectorAll('img:not([alt])');
+  const buttons = container.querySelectorAll('button:not([aria-label]):not([aria-labelledby])');
+  const inputs = container.querySelectorAll('input:not([aria-label]):not([aria-labelledby])');
+  
+  const issues: string[] = [];
+  
+  if (images.length > 0) {
+    issues.push(`${images.length} images without alt text`);
+  }
+  
+  const buttonsWithoutText = Array.from(buttons).filter(btn => !btn.textContent?.trim());
+  if (buttonsWithoutText.length > 0) {
+    issues.push(`${buttonsWithoutText.length} buttons without accessible names`);
+  }
+  
+  const inputsWithoutLabels = Array.from(inputs).filter(input => {
+    const id = input.getAttribute('id');
+    return !id || !container.querySelector(`label[for="${id}"]`);
+  });
+  if (inputsWithoutLabels.length > 0) {
+    issues.push(`${inputsWithoutLabels.length} inputs without proper labels`);
+  }
+  
+  return {
+    passed: issues.length === 0,
+    issues,
+  };
+};
+```
+
+## Error Boundary and Edge Case Testing
+
+### Testing Error Scenarios
+- Test error boundaries and error states
+- Test loading states and edge cases
+- Test component behavior with invalid props
+
+```tsx
+import { render, screen } from '@testing-library/react';
+import { ErrorBoundary } from './ErrorBoundary';
+
+// Component that throws error for testing
+const ThrowError = ({ shouldThrow }: { shouldThrow: boolean }) => {
+  if (shouldThrow) {
+    throw new Error('Test error');
+  }
+  return <div>No error</div>;
+};
+
+describe('ErrorBoundary', () => {
+  beforeEach(() => {
+    // Suppress console.error for cleaner test output
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    (console.error as jest.Mock).mockRestore();
+  });
+
+  it('should display children when no error occurs', () => {
+    render(
+      <ErrorBoundary>
+        <ThrowError shouldThrow={false} />
+      </ErrorBoundary>
+    );
+    
+    expect(screen.getByText('No error')).toBeInTheDocument();
+  });
+
+  it('should display error UI when child throws error', () => {
+    render(
+      <ErrorBoundary>
+        <ThrowError shouldThrow={true} />
+      </ErrorBoundary>
+    );
+    
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+    expect(screen.getByText(/something went wrong/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /try again/i })).toBeInTheDocument();
+  });
+
+  it('should log error details', () => {
+    render(
+      <ErrorBoundary>
+        <ThrowError shouldThrow={true} />
+      </ErrorBoundary>
+    );
+    
+    expect(console.error).toHaveBeenCalledWith(
+      expect.stringContaining('Component error:'),
+      expect.any(Error),
+      expect.any(Object)
+    );
+  });
+});
+
+// Testing loading states and async behavior
+describe('AsyncComponent edge cases', () => {
+  it('should handle empty data gracefully', async () => {
+    const mockService = {
+      getData: jest.fn().mockResolvedValue([])
+    };
+
+    render(<DataList service={mockService} />);
+    
+    await waitFor(() => {
+      expect(screen.getByText(/no data available/i)).toBeInTheDocument();
+    });
+  });
+
+  it('should handle very large datasets', async () => {
+    const largeDataset = Array.from({ length: 10000 }, (_, i) => ({
+      id: `item-${i}`,
+      name: `Item ${i}`
+    }));
+    
+    const mockService = {
+      getData: jest.fn().mockResolvedValue(largeDataset)
+    };
+
+    render(<VirtualizedList service={mockService} />);
+    
+    await waitFor(() => {
+      // Should only render visible items
+      const renderedItems = screen.getAllByRole('listitem');
+      expect(renderedItems.length).toBeLessThan(100); // Virtualized
+    });
+  });
+
+  it('should handle component unmounting during async operation', async () => {
+    const slowService = {
+      getData: jest.fn(() => new Promise(resolve => setTimeout(resolve, 1000)))
+    };
+
+    const { unmount } = render(<AsyncComponent service={slowService} />);
+    
+    // Unmount component before async operation completes
+    unmount();
+    
+    // Should not cause memory leaks or errors
+    await new Promise(resolve => setTimeout(resolve, 1100));
+    
+    // No errors should be thrown
+  });
+});
+```
+
+## Performance Testing
+
+### Testing React Component Performance
+- Test render performance and optimization
+- Test memory usage and cleanup
+- Test component update efficiency
+
+```tsx
+// Performance testing utilities
+export const measureRenderTime = (component: React.ReactElement, iterations = 100) => {
+  const times: number[] = [];
+  
+  for (let i = 0; i < iterations; i++) {
+    const start = performance.now();
+    const { unmount } = render(component);
+    const end = performance.now();
+    
+    times.push(end - start);
+    unmount();
+  }
+  
+  return {
+    average: times.reduce((a, b) => a + b, 0) / times.length,
+    min: Math.min(...times),
+    max: Math.max(...times),
+    median: times.sort()[Math.floor(times.length / 2)],
+  };
+};
+
+// Memory leak testing
+export const testMemoryLeaks = async (component: React.ReactElement) => {
+  const initialMemory = (performance as any).memory?.usedJSHeapSize || 0;
+  
+  // Render and unmount component multiple times
+  for (let i = 0; i < 100; i++) {
+    const { unmount } = render(component);
+    unmount();
+  }
+  
+  // Force garbage collection if available
+  if (global.gc) {
+    global.gc();
+  }
+  
+  const finalMemory = (performance as any).memory?.usedJSHeapSize || 0;
+  const memoryIncrease = finalMemory - initialMemory;
+  
+  return {
+    initialMemory,
+    finalMemory,
+    memoryIncrease,
+    hasLeak: memoryIncrease > 1024 * 1024, // 1MB threshold
+  };
+};
+
+describe('Component Performance', () => {
+  it('should render efficiently', () => {
+    const component = <ExpensiveComponent data={largeDataset} />;
+    const performance = measureRenderTime(component);
+    
+    expect(performance.average).toBeLessThan(50); // 50ms threshold
+  });
+
+  it('should not have memory leaks', async () => {
+    const component = <ComponentWithEffects />;
+    const memoryTest = await testMemoryLeaks(component);
+    
+    expect(memoryTest.hasLeak).toBe(false);
+  });
+
+  it('should optimize re-renders with React.memo', () => {
+    const onUpdate = jest.fn();
+    
+    const { rerender } = render(
+      <MemoizedComponent data={data} onUpdate={onUpdate} />
+    );
+    
+    // Re-render with same props
+    rerender(<MemoizedComponent data={data} onUpdate={onUpdate} />);
+    
+    // Component should not re-render
+    expect(onUpdate).toHaveBeenCalledTimes(1);
+  });
+});
