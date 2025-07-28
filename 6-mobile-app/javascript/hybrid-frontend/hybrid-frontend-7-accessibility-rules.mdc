@@ -1,0 +1,115 @@
+---
+description: USE WHEN creating inclusive, accessible web applications to ensure application work for all users, including those with disabilities
+globs: ["**/*"]
+alwaysApply: false
+---
+# Hybrid Frontend Accessibility Rules
+
+## Semantic HTML Foundation (Web Standards)
+
+### Proper Element Usage
+- Use appropriate components or native elements for semantic purpose
+- Choose UI elements based on meaning, not appearance
+- Maintain logical structure for accessibility tools
+- Use accessible equivalents for lists and headings
+- Implement accessible regions for navigation structure
+
+### Heading Hierarchy
+- Start with accessible title component or heading for main page title
+- Use heading levels sequentially without skipping where possible
+- Don’t use headings solely for styling
+- Ensure headings describe section content accurately
+- Use accessibility attributes to associate headings with regions
+
+### List Structures
+- Use accessible list components for ordered/unordered content
+- Avoid lists for non-list content
+- Ensure proper list item nesting and semantics
+
+## ARIA Implementation (WCAG)
+
+### Labels and Descriptions
+- Use accessibility labels (e.g., accessibilityLabel) for elements without visible text
+- Use accessibilityHint or descriptions for additional context
+- Avoid redundant roles or labels where native components provide semantics
+- Keep labels concise and purposeful
+
+### Roles and States
+- Apply roles to enhance semantic clarity where needed
+- Use accessibilityState for dynamic changes (expanded, checked)
+- Update accessibility state when UI changes
+- Hide decorative elements from accessibility tree
+- Use live regions to announce dynamic content
+
+### Live Regions
+- Use accessibilityLiveRegion for content that updates dynamically
+- Choose appropriate announcement levels
+- Ensure whole message is read when needed
+- Use status role for updates
+- Announce loading and progress indicators
+
+## Keyboard Navigation (WCAG)
+
+### Focus Management
+- Ensure all interactive elements are keyboard accessible
+- Maintain logical tab order
+- Provide visible and styled focus indicators
+- Manage focus during dynamic UI changes
+- Use skip links or equivalents for navigation
+
+### Keyboard Interaction Patterns
+- Support arrow key navigation in lists/menus
+- Use Enter and Space for activations
+- Escape to close modals or popups
+- Provide shortcut support for key actions
+- Handle Home/End navigation for elements
+
+### Skip Links and Shortcuts
+- Provide skip links or accessibility actions for quick navigation
+- Make skip links visible when focused
+- Use access keys or gestures where appropriate
+- Document supported keyboard and gesture actions
+
+## Visual Accessibility
+
+### Color and Contrast
+- Ensure WCAG-compliant contrast ratios
+- Don’t use color alone for conveying meaning
+- Support dark/light mode themes
+- Use visual cues alongside colors
+
+### Typography and Spacing
+- Use scalable units (rem, em) for font sizing
+- Support 200% zoom readability
+- Maintain readable line height and element spacing
+- Respect user preferences for text sizing
+
+## Accessible Form Interactions
+
+### Advanced Form Accessibility
+- Use accessibilityRole and accessibilityLabel for form controls
+- Announce form state changes using alerts or live regions
+- Support keyboard and screen reader navigation
+- Provide real-time validation feedback
+
+## Component-Specific Accessibility
+
+### Modal and Dialog Patterns
+- Trap focus inside modal while open
+- Return focus to invoking element on close
+- Use role="dialog" and appropriate labeling
+- Implement Escape key to dismiss modal
+- Provide accessible close button
+
+### Table Accessibility
+- Use semantic table structure with headers
+- Define relationships using accessibility attributes
+- Provide captions or summaries for context
+- Ensure responsive tables retain accessibility features
+- Indicate sort order using ARIA where needed
+
+## Testing and Validation
+
+### Accessibility Testing
+- Use accessibility validation tools and emulators
+- Verify ARIA usage and state changes are announced properly

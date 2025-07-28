@@ -1,0 +1,154 @@
+---
+description: USE WHEN designing frontend architecture, implementing design patterns, organizing code structure, or discussing architectural decisions for creating maintainable, scalable component architectures
+globs: ["**/*"]
+alwaysApply: false
+---
+# Hybrid Development Architecture Rules
+
+## SOLID Principles in Components
+
+### Single Responsibility Principle (SOLID - S)
+- Each component must have ONE clear, well-defined purpose across all target platforms
+- Split components that handle multiple concerns into smaller, focused units
+- Name components based on their single responsibility (Button, Modal, UserCard)
+- If component description uses "AND", consider splitting it
+- Keep business logic separate from platform-specific rendering logic
+
+### Open/Closed Principle (SOLID - O)
+- Design components for extension without modification across platforms
+- Use composition patterns over inheritance
+- Leverage props/attributes/parameters for cross-platform configuration
+- Implement plugin patterns for platform-specific extensibility
+- Use platform-agnostic styling approaches for customization
+
+### Liskov Substitution Principle (SOLID - L)
+- Components should be replaceable with their implementations without breaking functionality on any platform
+- Ensure consistent behavior across component variants and platforms
+- Maintain compatible interfaces when extending components across different environments
+- Avoid breaking contracts in component inheritance chains
+- Test component substitutability across different platforms and contexts
+
+### Interface Segregation Principle (SOLID - I)
+- Create focused, minimal interfaces rather than large, monolithic ones
+- Split complex prop/parameter interfaces into smaller, platform-specific contracts
+- Avoid forcing components to depend on platform-specific props they don't use
+- Use composition to combine focused interfaces when needed
+- Keep component APIs lean and purposeful across platforms
+
+### Dependency Inversion (SOLID - D)
+- Depend on abstractions, not platform-specific implementations
+- Inject dependencies through props, context, or dependency injection containers
+- Abstract API calls behind service interfaces that work across platforms
+- Use dependency injection for external services and platform-specific features
+
+## Component Structure & Organization
+
+### File Organization
+- One component per file with descriptive filename
+- Co-locate related files (styles, tests, types, platform-specific implementations) in component folders
+- Use consistent naming conventions across the project and platforms
+- Group related components in feature/domain folders
+- Keep shared/common components in dedicated cross-platform directory
+
+### Component Interface Design
+- Define clear, minimal interfaces that work across platforms
+- Use descriptive, semantic property names
+- Distinguish between required and optional parameters
+- Provide sensible defaults for optional parameters
+- Document platform-specific behaviors and limitations
+
+### Composition Patterns
+- Favor composition over inheritance for cross-platform component reuse
+- Use compound component patterns for complex UI that adapts to different platforms
+- Implement render props or equivalent patterns for behavior sharing
+- Create higher-order components for cross-cutting concerns
+- Use slots/children/content projection for platform-appropriate content injection
+
+## Component Data Flow
+
+### Component Communication
+- Pass data down through props, attributes, or parameters
+- Use callback functions or event systems for upward communication
+- Implement clear interfaces between parent and child components
+- Avoid deep prop drilling through component hierarchies
+- Use context, state management, or dependency injection for cross-cutting data
+
+## Component Lifecycle & Side Effects
+
+### Effect Management
+- Handle side effects in appropriate lifecycle hooks or equivalent mechanisms
+- Clean up subscriptions and event listeners across platforms
+- Avoid memory leaks from uncleaned references
+- Implement proper error boundaries or equivalent error handling
+- Use cancellation tokens for async operations
+
+### Event Handling
+- Use consistent naming for event handlers across platforms
+- Handle events at the appropriate component level
+- Prevent event bubbling when necessary and supported
+- Implement proper input event handling (keyboard, touch, mouse)
+- Clean up event listeners on component destruction
+
+## Component Optimization
+
+### Component Design for Performance
+- Design components with minimal re-render impact across platforms
+- Use proper component boundaries to isolate updates
+- Implement efficient composition patterns that work across different rendering engines
+- Design reusable components with cross-platform performance in mind
+
+## Error Handling
+
+### Component Error Boundaries
+- Implement error boundaries at strategic component levels where supported
+- Provide fallback UI for component errors appropriate to each platform
+- Log errors with sufficient context for debugging across platforms
+- Allow graceful error recovery when possible
+- Avoid cascading failures through proper error isolation
+
+### Input Validation
+- Validate props/parameters at component boundaries
+- Use type systems for compile-time checking where available
+- Implement runtime validation for external data
+- Provide clear error messages for invalid inputs appropriate to each platform
+- Handle edge cases gracefully across platforms
+- Validate data at all entry points
+- Use schema validation for complex data structures
+- Provide immediate feedback on invalid input using platform-appropriate UI patterns
+- Sanitize user input before processing
+- Implement client-side validation as UX enhancement, not security
+
+## Component Structure Standards
+
+### Platform-Appropriate Structure
+- Build components with proper structural foundation for each platform
+- Follow semantic principles appropriate to each target platform
+- Ensure components generate accessible output where supported
+
+## Testing Architecture
+
+### Testable Design
+- Design components with testing in mind across platforms
+- Use dependency injection for external services
+- Keep business logic in pure functions separate from platform-specific code
+- Avoid testing implementation details
+- Focus on component behavior and outputs across different platforms
+
+### Test Organization
+- Co-locate tests with components
+- Use descriptive test names that explain behavior
+- Group related tests logically
+- Test component integration across platforms, not just units
+- Mock external dependencies and platform-specific APIs appropriately
+
+## 12-Factor App Principles for Hybrid Development
+
+### Configuration Management (12-Factor III)
+- Externalize configuration through environment variables or platform-appropriate configuration systems
+- Separate development, staging, and production configurations across all platforms
+- Avoid hardcoding environment-specific values in source code
+- Use configuration objects injected at runtime for each platform
+
+### Development and Production Parity (12-Factor X)
+- Maintain consistent API contracts across environments and platforms
+- Use feature flags instead of environment-specific or platform-specific code branches

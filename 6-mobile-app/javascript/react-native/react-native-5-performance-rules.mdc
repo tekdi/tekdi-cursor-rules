@@ -1,0 +1,260 @@
+---
+description: USE WHEN optimizing for speed, efficiency, and user experience while maintaining the performance optimization principles
+globs: ["**/*"]
+alwaysApply: false
+---
+# React Native Performance Optimization Rules
+
+## React Component Optimization
+
+### Rendering Optimization with React.memo and Hooks
+- Use `React.memo` for components that receive stable props
+- Implement `useMemo` and `useCallback` for expensive computations
+- Avoid creating objects and functions during render
+- Use proper key props for list rendering
+
+```tsx
+interface UserCardProps {
+  user: User;
+  onEdit: (user: User) => void;
+  isSelected: boolean;
+}
+
+const UserCard = React.memo(({ user, onEdit, isSelected }: UserCardProps) => {
+  const formattedData = useMemo(() => {
+    return {
+      fullName: `${user.firstName} ${user.lastName}`,
+      memberSince: new Date(user.createdAt).getFullYear(),
+      initials: `${user.firstName[0]}${user.lastName[0]}`
+    };
+  }, [user.firstName, user.lastName, user.createdAt]);
+
+  const handleEdit = useCallback(() => {
+    onEdit(user);
+  }, [onEdit, user]);
+
+  return (
+    <View style={[styles.userCard, isSelected && styles.selected]}>
+      <View style={styles.avatar}><Text>{formattedData.initials}</Text></View>
+      <View>
+        <Text style={styles.name}>{formattedData.fullName}</Text>
+        <Text>Member since {formattedData.memberSince}</Text>
+      </View>
+      <Button title="Edit" onPress={handleEdit} />
+    </View>
+  );
+}, (prevProps, nextProps) => {
+  return (
+    prevProps.user.id === nextProps.user.id &&
+    prevProps.user.firstName === nextProps.user.firstName &&
+    prevProps.user.lastName === nextProps.user.lastName &&
+    prevProps.isSelected === nextProps.isSelected &&
+    prevProps.onEdit === nextProps.onEdit
+  );
+});
+
+UserCard.displayName = 'UserCard';
+
+interface UserListProps {
+  users: User[];
+  selectedIds: Set<string>;
+  onEditUser: (user: User) => void;
+}
+
+export const UserList: React.FC<UserListProps> = ({ users, selectedIds, onEditUser }) => {
+  const memoizedOnEdit = useCallback((user: User) => {
+    onEditUser(user);
+  }, [onEditUser]);
+
+  return (
+    <FlatList
+      data={users}
+      keyExtractor={(item) => item.id}
+      renderItem={({ item }) => (
+        <UserCard
+          user={item}
+          isSelected={selectedIds.has(item.id)}
+          onEdit={memoizedOnEdit}
+        />
+      )}
+    />
+  );
+};
+```
+
+### Avoiding Common Performance Anti-patterns
+- Don't create objects or functions in render
+- Don't use array indices as keys for dynamic lists
+- Avoid unnecessary useEffect dependencies
+
+```tsx
+// Bad
+const BadComponent: React.FC<{ user: User }> = ({ user }) => {
+  return (
+    <UserProfile
+      user={user}
+      style={{ padding: 16, margin: 8 }}
+      onSave={() => saveUser(user)}
+    />
+  );
+};
+
+// Good
+const GoodComponent: React.FC<{ user: User }> = ({ user }) => {
+  const style = useMemo(() => ({ padding: 16, margin: 8 }), []);
+  const handleSave = useCallback(() => saveUser(user), [user]);
+
+  return (
+    <UserProfile
+      user={user}
+      style={style}
+      onSave={handleSave}
+    />
+  );
+};
+
+// Bad
+const BadList: React.FC<{ items: Item[] }> = ({ items }) => (
+  <FlatList
+    data={items}
+    renderItem={({ item, index }) => <Text key={index}>{item.name}</Text>}
+  />
+);
+
+// Good
+const GoodList: React.FC<{ items: Item[] }> = ({ items }) => (
+  <FlatList
+    data={items}
+    keyExtractor={(item) => item.id}
+    renderItem={({ item }) => <Text>{item.name}</Text>}
+  />
+);
+```
+
+## Code Splitting and Lazy Loading
+
+### Dynamic Imports
+- Use `React.lazy` and `Suspense` for dynamic imports (React Native Web only)
+- Use conditional rendering and `import()` inside handlers for features/components
+
+```tsx
+// Dynamic import hook
+const useDynamicImport = <T>(importFunc: () => Promise<{ default: T }>) => {
+  const [component, setComponent] = useState<T | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+
+  const loadComponent = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const module = await importFunc();
+      setComponent(module.default);
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error('Failed to load component'));
+    } finally {
+      setLoading(false);
+    }
+  }, [importFunc]);
+
+  return { component, loading, error, loadComponent };
+};
+```
+
+## Large List Optimization
+
+### FlatList Optimization
+- Use `FlatList` for large lists
+- Use `getItemLayout`, `initialNumToRender`, `windowSize`, and `removeClippedSubviews` appropriately
+
+```tsx
+<FlatList
+  data={users}
+  keyExtractor={(item) => item.id}
+  renderItem={({ item }) => <UserCard user={item} />}
+  initialNumToRender={10}
+  maxToRenderPerBatch={10}
+  windowSize={5}
+  removeClippedSubviews={true}
+/>
+```
+
+## Image Optimization
+
+### Lazy Loading with Placeholder
+- Use libraries like `react-native-fast-image` for performance
+- Use `onLoadEnd`, `onLoad`, and placeholder elements
+
+```tsx
+import FastImage from 'react-native-fast-image';
+
+export const LazyImage: React.FC<{ uri: string; style?: ViewStyle }> = ({ uri, style }) => {
+  const [loaded, setLoaded] = useState(false);
+
+  return (
+    <View style={style}>
+      {!loaded && <ActivityIndicator />}
+      <FastImage
+        source={{ uri }}
+        style={[style, !loaded && { display: 'none' }]}
+        onLoadEnd={() => setLoaded(true)}
+      />
+    </View>
+  );
+};
+```
+
+## State and Re-render Optimization
+
+### Context Optimization
+- Split context by concern
+- Memoize context values
+
+```tsx
+const UserContext = createContext<User | null>(null);
+const UserActionsContext = createContext<Actions | null>(null);
+
+export const UserProvider: React.FC = ({ children }) => {
+  const [user, setUser] = useState<User | null>(null);
+
+  const actions = useMemo(() => ({
+    updateUser: (updates: Partial<User>) => {
+      setUser(prev => prev ? { ...prev, ...updates } : null);
+    },
+    deleteUser: () => setUser(null)
+  }), []);
+
+  return (
+    <UserContext.Provider value={user}>
+      <UserActionsContext.Provider value={actions}>
+        {children}
+      </UserActionsContext.Provider>
+    </UserContext.Provider>
+  );
+};
+```
+
+## Performance Monitoring
+
+### Manual Logging
+- Add logging in development builds
+- Measure expensive computations
+
+```tsx
+const usePerformanceMonitor = (componentName: string) => {
+  const renderStart = useRef(Date.now());
+  const renderCount = useRef(0);
+
+  useEffect(() => {
+    renderCount.current++;
+    const renderTime = Date.now() - renderStart.current;
+    if (__DEV__) {
+      console.log(`${componentName} render #${renderCount.current} took ${renderTime}ms`);
+    }
+    renderStart.current = Date.now();
+  });
+
+  return renderCount.current;
+};
+```

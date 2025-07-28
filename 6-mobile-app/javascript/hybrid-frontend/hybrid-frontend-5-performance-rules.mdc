@@ -1,0 +1,107 @@
+---
+description: USE WHEN optimizing for speed, efficiency, and user experience while maintaining the performance optimization principles
+globs: ["**/*"]
+alwaysApply: false
+---
+# Hybrid Frontend Performance Optimization Rules
+
+## Bundle and Asset Optimization
+
+### Code Splitting Strategies (Lazy Loading)
+- Split code by routes and features to reduce initial bundle size
+- Use dynamic imports for components not needed immediately
+- Create separate chunks for vendor libraries and dependencies
+- Implement lazy loading for conditional features and routes
+- Load components on demand based on user interactions
+
+### Tree Shaking and Dead Code Elimination
+- Import only specific functions from libraries, avoid default imports
+- Use ES modules for better tree shaking support
+- Remove unused code and dead branches regularly
+- Avoid importing entire utility libraries when only using specific functions
+
+### Asset Optimization
+- Compress and optimize images before bundling
+- Use modern image formats (WebP) with fallbacks where supported
+- Implement responsive images where applicable
+- Use vector icons or icon libraries for small graphics
+- Minimize and compress CSS and JavaScript files
+
+## Runtime Performance Optimization
+
+### Rendering Optimization (Performance First)
+- Minimize component re-renders through proper state management
+- Use memoization strategically for expensive computations
+- Implement proper key props for list rendering
+- Avoid creating objects and functions during render
+- Use virtualization for large lists and tables
+
+### Memory Management
+- Remove object references when components unmount
+- Manage memory usage in hybrid apps to prevent performance drops
+
+### Efficient UI Operations
+- Batch UI updates to reduce rendering overhead
+- Avoid frequent style changes that trigger layout
+- Optimize views rendered off-screen
+
+## Network and Loading Optimization
+
+### Resource Loading Strategies
+- Preload critical resources if supported
+- Implement progressive enhancement patterns
+- Optimize critical rendering path
+- Use offline support and caching mechanisms
+
+### Caching Strategies
+- Use appropriate hybrid storage solutions for caching
+- Cache API responses with proper invalidation
+- Version static assets for cache busting
+
+### Request Optimization
+- Batch multiple API calls when possible
+- Implement request deduplication for concurrent requests
+- Use efficient data fetching patterns
+- Compress request and response payloads
+
+## Initial Load Performance
+
+### Critical UI Optimization
+- Prioritize loading of essential UI components
+- Defer non-critical assets and modules
+- Remove unused CSS and JS where possible
+
+### JavaScript Loading Optimization
+- Defer non-critical logic until after initial load
+- Load third-party modules efficiently
+- Implement loading strategies based on user interaction
+
+## User Experience Performance
+
+### Perceived Performance
+- Show skeleton loaders or placeholders during data fetch
+- Implement optimistic UI updates
+- Provide immediate feedback for user actions
+- Use progressive loading for images and assets
+
+### Smooth Interactions
+- Keep main thread free for user input
+- Respond to user actions within 100ms
+- Implement instant touch feedback
+- Debounce expensive operations triggered by user input
+
+## Performance Monitoring (DevOps)
+
+### Performance Budgets
+- Track key metrics during development
+- Add performance logging for hybrid render paths
+
+### Development Performance Practices
+- Use profiling tools to measure component render times
+- Add comments documenting performance decisions
+
+## Performance Testing
+
+### Performance Test Implementation
+- Write tests to ensure performance budgets are met
+- Measure and assert key render and interaction times

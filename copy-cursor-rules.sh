@@ -10,13 +10,85 @@ NC='\033[0m' # No Color
 # Repository URL
 REPO_URL="https://github.com/tekdi/tekdi-cursor-rules.git"
 
-# Create temporary directory for cloning
-TMP_DIR=$(mktemp -d)
-SCRIPT_DIR="$TMP_DIR/tekdi-cursor-rules"
+# Global variables
+DEBUG_MODE=false
+SCRIPT_DIR=""
+
+# Create temporary directory for cloning (only if not in debug mode)
+TMP_DIR=""
+
+# Parse command line arguments
+parse_arguments() {
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --debug|-d)
+                DEBUG_MODE=true
+                shift
+                ;;
+            --help|-h)
+                show_help
+                exit 0
+                ;;
+            *)
+                print_error "Unknown option: $1"
+                show_help
+                exit 1
+                ;;
+        esac
+    done
+}
+
+# Show help message
+show_help() {
+    echo "Usage: $0 [OPTIONS]"
+    echo ""
+    echo "Options:"
+    echo "  --debug, -d    Enable debug mode (use local files instead of cloning)"
+    echo "  --help, -h     Show this help message"
+    echo ""
+    echo "Debug mode:"
+    echo "  When debug mode is enabled, the script will use the local repository"
+    echo "  files instead of cloning from GitHub. Make sure you have the"
+    echo "  tekdi-cursor-rules repository cloned locally in the same directory"
+    echo "  as this script."
+}
+
+# Initialize directories based on mode
+initialize_directories() {
+    if [[ "$DEBUG_MODE" == true ]]; then
+        print_info "Debug mode enabled - using local files"
+        # Use local directory (assume script is in the repository or adjacent to it)
+        local current_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+        
+        # Check if we're inside the repository
+        if [[ -d "$current_dir/1-tekdi" ]]; then
+            SCRIPT_DIR="$current_dir"
+        # Check if repository is in the same parent directory
+        elif [[ -d "$current_dir/tekdi-cursor-rules" ]]; then
+            SCRIPT_DIR="$current_dir/tekdi-cursor-rules"
+        # Check if we're in a parent directory and repository is a subdirectory
+        elif [[ -d "$current_dir/../tekdi-cursor-rules" ]]; then
+            SCRIPT_DIR="$(cd "$current_dir/../tekdi-cursor-rules" && pwd)"
+        else
+            print_error "Local repository not found. Please ensure tekdi-cursor-rules repository is available locally."
+            print_error "Expected locations:"
+            print_error "  - Current directory: $current_dir"
+            print_error "  - Sibling directory: $current_dir/tekdi-cursor-rules"
+            print_error "  - Parent directory: $current_dir/../tekdi-cursor-rules"
+            exit 1
+        fi
+        
+        print_success "Using local repository at: $SCRIPT_DIR"
+    else
+        # Create temporary directory for cloning
+        TMP_DIR=$(mktemp -d)
+        SCRIPT_DIR="$TMP_DIR/tekdi-cursor-rules"
+    fi
+}
 
 # Cleanup function
 cleanup() {
-    if [[ -d "$TMP_DIR" ]]; then
+    if [[ -n "$TMP_DIR" && -d "$TMP_DIR" ]]; then
         print_info "Cleaning up temporary directory..."
         rm -rf "$TMP_DIR"
     fi
@@ -54,6 +126,11 @@ validate_path() {
 
 # Function to clone the repository
 clone_repository() {
+    if [[ "$DEBUG_MODE" == true ]]; then
+        print_info "Debug mode: Skipping repository clone, using local files"
+        return 0
+    fi
+    
     print_info "Cloning tekdi-cursor-rules repository..."
     
     # Check if git is installed
@@ -97,9 +174,10 @@ get_repo_path() {
 get_project_type() {
     while true; do
         echo
-        print_info "Is this a backend or frontend repository?"
+        print_info "Is this a backend, frontend, or mobile-app repository?"
         echo "1) backend"
         echo "2) frontend"
+        echo "3) mobile-app"
         read -r choice
         
         case $choice in
@@ -111,8 +189,12 @@ get_project_type() {
                 project_type="frontend"
                 return 0
                 ;;
+            3|mobile-app|mobile-app|Mobile-app|Mobile-app|MOBILE-APP|MOBILE-APP)
+                project_type="mobile-app"
+                return 0
+                ;;
             *)
-                print_error "Invalid input. Please enter 'backend' or 'frontend' (or 1/2)."
+                print_error "Invalid input. Please enter 'backend', 'frontend', or 'mobile-app' (or 1/2/3)."
                 ;;
         esac
     done
@@ -127,21 +209,86 @@ get_language() {
         print_info "Which programming language are you using?"
         
         if [[ "$proj_type" == "backend" ]]; then
-            echo "Supported languages: java, php, python, nodejs"
+            echo "1) java"
+            echo "2) php" 
+            echo "3) python"
+            echo "4) nodejs"
+        elif [[ "$proj_type" == "mobile-app" ]]; then
+            echo "1) kotlin"
+            echo "2) swift"
+            echo "3) dart"
+            echo "4) javascript"
         else
-            echo "Supported languages: javascript, html, css"
+            echo "1) javascript"
+            echo "2) html"
+            echo "3) css"
         fi
         
-        read -r language
+        read -r language_input
         
-        case $language in
-            java|php|python|nodejs|javascript|html|css)
-                return 0
-                ;;
-            *)
-                print_error "Invalid language. Please enter one of the supported languages."
-                ;;
-        esac
+        if [[ "$proj_type" == "backend" ]]; then
+            case $language_input in
+                1|java|Java|JAVA)
+                    language="java"
+                    return 0
+                    ;;
+                2|php|PHP|Php)
+                    language="php"
+                    return 0
+                    ;;
+                3|python|Python|PYTHON)
+                    language="python"
+                    return 0
+                    ;;
+                4|nodejs|node|Node|NodeJS|NODE|NODEJS)
+                    language="nodejs"
+                    return 0
+                    ;;
+                *)
+                    print_error "Invalid language. Please enter a number (1-4) or one of: java, php, python, nodejs"
+                    ;;
+            esac
+        elif [[ "$proj_type" == "mobile-app" ]]; then
+            case $language_input in
+                1|kotlin|Kotlin|KOTLIN)
+                    language="kotlin"
+                    return 0
+                    ;;
+                2|swift|Swift|SWIFT)
+                    language="swift"
+                    return 0
+                    ;;
+                3|dart|Dart|DART)
+                    language="dart"
+                    return 0
+                    ;;
+                4|javascript|js|JavaScript|JS|JAVASCRIPT)
+                    language="javascript"
+                    return 0
+                    ;;
+                *)
+                    print_error "Invalid language. Please enter a number (1-4) or one of: kotlin, swift, dart, javascript"
+                    ;;
+            esac
+        else
+            case $language_input in
+                1|javascript|js|JavaScript|JS|JAVASCRIPT)
+                    language="javascript"
+                    return 0
+                    ;;
+                2|html|HTML|Html)
+                    language="html"
+                    return 0
+                    ;;
+                3|css|CSS|Css)
+                    language="css"
+                    return 0
+                    ;;
+                *)
+                    print_error "Invalid language. Please enter a number (1-3) or one of: javascript, html, css"
+                    ;;
+            esac
+        fi
     done
 }
 
@@ -157,10 +304,38 @@ get_framework() {
     if [[ "$proj_type" == "backend" ]]; then
         case $lang in
             nodejs)
-                echo "Available frameworks: nestjs"
+                echo "Available frameworks:"
+                echo "1) nestjs"
                 ;;
             python)
-                echo "Available frameworks: fastapi, django"
+                echo "Available frameworks:"
+                echo "1) fastapi"
+                echo "2) django"
+                ;;
+            *)
+                echo "Available frameworks: (framework-specific rules may not be available)"
+                ;;
+        esac
+    elif [[ "$proj_type" == "mobile-app" ]]; then
+        case $lang in
+            javascript)
+                echo "Available frameworks:"
+                echo "1) react-native"
+                echo "2) ionic"
+                ;;
+            dart)
+                echo "Available frameworks:"
+                echo "1) flutter"
+                ;;
+            kotlin)
+                echo "Available frameworks:"
+                echo "1) android-native"
+                echo "2) compose"
+                ;;
+            swift)
+                echo "Available frameworks:"
+                echo "1) ios-native"
+                echo "2) swiftui"
                 ;;
             *)
                 echo "Available frameworks: (framework-specific rules may not be available)"
@@ -169,7 +344,9 @@ get_framework() {
     else
         case $lang in
             javascript)
-                echo "Available frameworks: reactjs, angular"
+                echo "Available frameworks:"
+                echo "1) reactjs"
+                echo "2) angular"
                 ;;
             *)
                 echo "Available frameworks: (framework-specific rules may not be available)"
@@ -177,7 +354,138 @@ get_framework() {
         esac
     fi
     
-    read -r framework
+    read -r framework_input
+    
+    # Handle framework selection based on project type and language
+    if [[ "$proj_type" == "backend" ]]; then
+        case $lang in
+            nodejs)
+                case $framework_input in
+                    1|nestjs|NestJS|NESTJS)
+                        framework="nestjs"
+                        ;;
+                    "")
+                        framework=""
+                        ;;
+                    *)
+                        framework="$framework_input"
+                        ;;
+                esac
+                ;;
+            python)
+                case $framework_input in
+                    1|fastapi|FastAPI|FASTAPI)
+                        framework="fastapi"
+                        ;;
+                    2|django|Django|DJANGO)
+                        framework="django"
+                        ;;
+                    "")
+                        framework=""
+                        ;;
+                    *)
+                        framework="$framework_input"
+                        ;;
+                esac
+                ;;
+            *)
+                framework="$framework_input"
+                ;;
+        esac
+    elif [[ "$proj_type" == "mobile-app" ]]; then
+        case $lang in
+            javascript)
+                case $framework_input in
+                    1|react-native|react_native|React-Native|React_Native|REACT-NATIVE|REACT_NATIVE)
+                        framework="react-native"
+                        ;;
+                    2|ionic|Ionic|IONIC)
+                        framework="ionic"
+                        ;;
+                    "")
+                        framework=""
+                        ;;
+                    *)
+                        framework="$framework_input"
+                        ;;
+                esac
+                ;;
+            dart)
+                case $framework_input in
+                    1|flutter|Flutter|FLUTTER)
+                        framework="flutter"
+                        ;;
+                    "")
+                        framework=""
+                        ;;
+                    *)
+                        framework="$framework_input"
+                        ;;
+                esac
+                ;;
+            kotlin)
+                case $framework_input in
+                    1|android-native|android_native|Android-Native|Android_Native|ANDROID-NATIVE|ANDROID_NATIVE)
+                        framework="android-native"
+                        ;;
+                    2|compose|Compose|COMPOSE)
+                        framework="compose"
+                        ;;
+                    "")
+                        framework=""
+                        ;;
+                    *)
+                        framework="$framework_input"
+                        ;;
+                esac
+                ;;
+            swift)
+                case $framework_input in
+                    1|ios-native|ios_native|iOS-Native|iOS_Native|IOS-NATIVE|IOS_NATIVE)
+                        framework="ios-native"
+                        ;;
+                    2|swiftui|SwiftUI|SWIFTUI)
+                        framework="swiftui"
+                        ;;
+                    "")
+                        framework=""
+                        ;;
+                    *)
+                        framework="$framework_input"
+                        ;;
+                esac
+                ;;
+            *)
+                framework="$framework_input"
+                ;;
+        esac
+    else
+        # Frontend
+        case $lang in
+            javascript)
+                case $framework_input in
+                    1|reactjs|react|React|ReactJS|REACT|REACTJS)
+                        framework="reactjs"
+                        ;;
+                    2|angular|Angular|ANGULAR)
+                        framework="angular"
+                        ;;
+                    3|react-native|react_native|React-Native|React_Native|REACT-NATIVE|REACT_NATIVE)
+                        framework="react-native"
+                        ;;
+                    "")
+                        framework=""
+                        ;;
+                    *)
+                        framework="$framework_input"
+                        ;;
+                esac
+                ;;
+            *)
+                framework="$framework_input"
+                ;;
+        esac
+    fi
 }
 
 # Function to backup existing file if it exists
@@ -256,12 +564,28 @@ copy_all_files() {
 
 # Main function
 main() {
+    # Parse command line arguments first
+    parse_arguments "$@"
+    
     echo
     print_info "=== Cursor Rules Copy Script ==="
-    print_info "This script will clone the tekdi-cursor-rules repository and copy the appropriate rules to your project."
+    if [[ "$DEBUG_MODE" == true ]]; then
+        print_info "Running in DEBUG MODE - using local files"
+    fi
+    print_info "This script will copy the appropriate cursor rules to your project."
     
-    # Clone the repository first
+    # Initialize directories based on mode
+    initialize_directories
+    
+    # Clone the repository (or skip if debug mode)
     clone_repository
+    
+    # Validate that the script directory exists and has the expected structure
+    if [[ ! -d "$SCRIPT_DIR/1-tekdi" ]]; then
+        print_error "Repository structure invalid. Missing '1-tekdi' directory."
+        print_error "Script directory: $SCRIPT_DIR"
+        exit 1
+    fi
     
     # Get user inputs
     get_repo_path
@@ -279,6 +603,9 @@ main() {
     
     print_info "Destination directory: $dest_dir"
     print_info "Backup directory (if needed): $backup_dir"
+    if [[ "$DEBUG_MODE" == true ]]; then
+        print_info "Source directory: $SCRIPT_DIR"
+    fi
     
     echo
     print_info "Starting file copy process"
@@ -318,6 +645,50 @@ main() {
                 copy_all_files "$SCRIPT_DIR/5-backend/python/$framework" "$dest_dir" "$framework framework rules"
             fi
         fi
+    elif [[ "$project_type" == "mobile-app" ]]; then
+        # Copy general mobile-app files
+        copy_files_matching "$SCRIPT_DIR/6-mobile-app" "$dest_dir" "mobile-app" "mobile-app $language rules"
+        
+        # Copy language-specific files
+        if [[ "$language" == "javascript" ]]; then
+            copy_all_files "$SCRIPT_DIR/6-mobile-app/javascript" "$dest_dir" "JavaScript mobile-app rules"
+            
+            # Copy framework-specific files
+            if [[ -n "$framework" ]]; then
+                if [[ "$framework" == "react-native" || "$framework" == "ionic" ]]; then
+                    # For React Native: copy from both hybrid-frontend and react-native folders
+                    echo
+                    print_info "Processing React Native framework..."
+                    print_info "Copying hybrid-frontend rules for React Native..."
+                    copy_all_files "$SCRIPT_DIR/6-mobile-app/javascript/hybrid-frontend" "$dest_dir" "hybrid-frontend rules"
+                fi
+                print_info "Copying $framework specific rules..."
+                copy_all_files "$SCRIPT_DIR/6-mobile-app/javascript/$framework" "$dest_dir" "$framework framework rules"
+            else
+                print_info "No framework specified, skipping framework-specific rules."
+            fi
+        elif [[ "$language" == "dart" ]]; then
+            copy_all_files "$SCRIPT_DIR/6-mobile-app/dart" "$dest_dir" "Dart mobile-app rules"
+            
+            # Copy framework-specific files
+            if [[ -n "$framework" ]]; then
+                copy_all_files "$SCRIPT_DIR/6-mobile-app/dart/$framework" "$dest_dir" "$framework framework rules"
+            fi
+        elif [[ "$language" == "kotlin" ]]; then
+            copy_all_files "$SCRIPT_DIR/6-mobile-app/kotlin" "$dest_dir" "Kotlin mobile-app rules"
+            
+            # Copy framework-specific files
+            if [[ -n "$framework" ]]; then
+                copy_all_files "$SCRIPT_DIR/6-mobile-app/kotlin/$framework" "$dest_dir" "$framework framework rules"
+            fi
+        elif [[ "$language" == "swift" ]]; then
+            copy_all_files "$SCRIPT_DIR/6-mobile-app/swift" "$dest_dir" "Swift mobile-app rules"
+            
+            # Copy framework-specific files
+            if [[ -n "$framework" ]]; then
+                copy_all_files "$SCRIPT_DIR/6-mobile-app/swift/$framework" "$dest_dir" "$framework framework rules"
+            fi
+        fi
     else
         # Frontend
         #copy_files_matching "$SCRIPT_DIR/4-frontend" "$dest_dir" "$language" "frontend $language rules"
@@ -338,11 +709,14 @@ main() {
     print_success "=== Copy process completed! ==="
     print_info "Rules have been copied to: $dest_dir"
     print_info "You can now use these cursor rules in your project."
-    print_info "Temporary files will be cleaned up automatically."
+    if [[ "$DEBUG_MODE" == false ]]; then
+        print_info "Temporary files will be cleaned up automatically."
+    fi
     
     # Show summary
     echo
     print_info "=== Summary ==="
+    print_info "Mode: $([ "$DEBUG_MODE" == true ] && echo "DEBUG (local files)" || echo "NORMAL (cloned repository)")"
     print_info "Repository: $repo_path"
     print_info "Project Type: $project_type"
     print_info "Language: $language"
@@ -363,5 +737,5 @@ main() {
     fi
 }
 
-# Run the main function
+# Run the main function with all arguments
 main "$@" 
