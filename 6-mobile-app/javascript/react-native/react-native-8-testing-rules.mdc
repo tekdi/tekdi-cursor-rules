@@ -1,0 +1,246 @@
+---
+description: USE WHEN writing test for ensuring testing and quality principles to build reliable, maintainable frontend applications with comprehensive test coverage and robust error handling
+globs: ["**/*"]
+alwaysApply: false
+---
+# React Native Testing & Quality Rules
+
+## React Native Testing Library Best Practices
+
+### User-Centric Testing with React Native Testing Library
+- Test components from the user's perspective
+- Use accessible queries (`getByRole`, `getByLabelText`, etc.)
+- Focus on behavior rather than implementation details
+- Test user interactions and state changes
+
+```tsx
+import { render, screen, fireEvent, waitFor } from '@testing-library/react-native';
+import userEvent from '@testing-library/user-event';
+import { UserProfile } from './UserProfile';
+import { mockUserService } from '../__mocks__/userService';
+
+describe('UserProfile', () => {
+  const defaultProps = {
+    userId: 'user-123',
+    userService: mockUserService,
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('should display user information when loaded', async () => {
+    const mockUser = {
+      id: 'user-123',
+      name: 'John Doe',
+      email: 'john.doe@example.com'
+    };
+
+    mockUserService.getUser.mockResolvedValue(mockUser);
+
+    render(<UserProfile {...defaultProps} />);
+
+    expect(screen.getByText(/loading/i)).toBeTruthy();
+
+    await waitFor(() => {
+      expect(screen.getByText('John Doe')).toBeTruthy();
+    });
+
+    expect(screen.getByText('john.doe@example.com')).toBeTruthy();
+    expect(mockUserService.getUser).toHaveBeenCalledWith('user-123');
+  });
+
+  it('should allow user to edit their profile', async () => {
+    const mockUser = {
+      id: 'user-123',
+      name: 'John Doe',
+      email: 'john.doe@example.com'
+    };
+
+    mockUserService.getUser.mockResolvedValue(mockUser);
+    mockUserService.updateUser.mockResolvedValue({ ...mockUser, name: 'Jane Doe' });
+
+    render(<UserProfile {...defaultProps} />);
+
+    await screen.findByText('John Doe');
+
+    const editButton = screen.getByRole('button', { name: /edit/i });
+    fireEvent.press(editButton);
+
+    expect(screen.getByTestId('edit-profile-form')).toBeTruthy();
+
+    const nameInput = screen.getByLabelText(/name/i);
+    fireEvent.changeText(nameInput, 'Jane Doe');
+
+    const submitButton = screen.getByRole('button', { name: /save/i });
+    fireEvent.press(submitButton);
+
+    await waitFor(() => {
+      expect(mockUserService.updateUser).toHaveBeenCalledWith('user-123', {
+        name: 'Jane Doe'
+      });
+    });
+  });
+
+  it('should display error message when loading fails', async () => {
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+    mockUserService.getUser.mockRejectedValue(new Error('Network error'));
+
+    render(<UserProfile {...defaultProps} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent(/failed to load user/i);
+    });
+
+    expect(screen.getByRole('button', { name: /try again/i })).toBeTruthy();
+
+    consoleSpy.mockRestore();
+  });
+});
+```
+
+## Testing React Native Hooks
+
+### Test Custom Hooks in Isolation
+- Use `renderHook` from React Native Testing Library
+- Test hook state changes and side effects
+
+```tsx
+import { renderHook, act } from '@testing-library/react-hooks';
+import { useCounter } from './useCounter';
+
+describe('useCounter', () => {
+  it('should initialize with default value', () => {
+    const { result } = renderHook(() => useCounter(0));
+
+    expect(result.current.count).toBe(0);
+  });
+
+  it('should increment counter', () => {
+    const { result } = renderHook(() => useCounter(0));
+
+    act(() => {
+      result.current.increment();
+    });
+
+    expect(result.current.count).toBe(1);
+  });
+});
+```
+
+## Component Integration Testing
+
+### Testing Component Interactions
+- Test how components work together
+- Test data flow between parent and child components
+- Test context providers and consumers
+
+```tsx
+import { render, screen } from '@testing-library/react-native';
+import { AuthProvider } from '../contexts/AuthContext';
+import { TodoApp } from './TodoApp';
+
+const createWrapper = () => {
+  return ({ children }: { children: React.ReactNode }) => (
+    <AuthProvider>{children}</AuthProvider>
+  );
+};
+
+describe('TodoApp Integration', () => {
+  it('should allow user to create and delete todos', async () => {
+    render(<TodoApp />, { wrapper: createWrapper() });
+
+    const input = screen.getByPlaceholderText(/new todo/i);
+    const addButton = screen.getByText(/add/i);
+
+    fireEvent.changeText(input, 'Test Todo');
+    fireEvent.press(addButton);
+
+    expect(await screen.findByText('Test Todo')).toBeTruthy();
+
+    const deleteButton = screen.getByText(/delete/i);
+    fireEvent.press(deleteButton);
+
+    expect(screen.queryByText('Test Todo')).toBeNull();
+  });
+});
+```
+
+## Testing Utilities and Helpers
+
+### Custom Testing Utilities
+- Create reusable testing utilities
+- Mock external dependencies consistently
+- Set up test data factories
+
+```tsx
+import { render } from '@testing-library/react-native';
+import { AuthProvider } from '../contexts/AuthContext';
+
+export const renderWithProviders = (ui: React.ReactElement) => {
+  return render(<AuthProvider>{ui}</AuthProvider>);
+};
+
+export const createMockUser = (overrides: Partial<User> = {}): User => ({
+  id: 'user-123',
+  name: 'John Doe',
+  email: 'john.doe@example.com',
+  ...overrides,
+});
+```
+
+## Error Handling and Edge Cases
+
+### Error and Loading State Testing
+- Test error boundaries and error states
+- Test loading states and edge cases
+
+```tsx
+import { render, screen } from '@testing-library/react-native';
+import { ErrorBoundary } from './ErrorBoundary';
+
+const ThrowError = ({ shouldThrow }: { shouldThrow: boolean }) => {
+  if (shouldThrow) throw new Error('Test error');
+  return <Text>No error</Text>;
+};
+
+describe('ErrorBoundary', () => {
+  beforeEach(() => {
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    (console.error as jest.Mock).mockRestore();
+  });
+
+  it('should display fallback on error', () => {
+    render(
+      <ErrorBoundary>
+        <ThrowError shouldThrow={true} />
+      </ErrorBoundary>
+    );
+
+    expect(screen.getByText(/something went wrong/i)).toBeTruthy();
+  });
+});
+```
+
+## Performance Considerations
+
+### React Native Performance Testing
+- Monitor render performance and cleanup
+- Test re-renders and memory usage (limited in RN)
+
+```tsx
+// Performance testing (manual observation)
+import { render } from '@testing-library/react-native';
+
+describe('Component Performance', () => {
+  it('should render multiple times without crashing', () => {
+    for (let i = 0; i < 100; i++) {
+      const { unmount } = render(<HeavyComponent />);
+      unmount();
+    }
+  });
+});
+```

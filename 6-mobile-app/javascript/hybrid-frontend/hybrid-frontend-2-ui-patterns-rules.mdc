@@ -1,0 +1,161 @@
+---
+description: USE WHEN implementing UI patterns and user interactions to create interfaces that are intuitive, accessible, and performant across all devices and user capabilities
+globs: ["**/*"]
+alwaysApply: false
+---
+
+# Hybrid UI/UX Patterns Rules
+
+## Responsive Design Patterns
+
+### Mobile-First Development (Progressive Enhancement)
+- Start all layouts with mobile viewport constraints
+- Use relative units (rem, em, %, vw, vh) over fixed pixels
+- Design touch-friendly interfaces from the ground up
+- Implement progressive enhancement for larger screens
+
+### Flexible Layout Systems
+- Use layout primitives that adapt across platforms (View, ScrollView, etc.)
+- Avoid fixed widths on container elements
+- Implement fluid spacing with token-based design systems
+- Design components to reflow gracefully at any screen size
+
+### Breakpoint Management
+- Define semantic layout breakpoints for key devices (mobile, tablet, desktop)
+- Use consistent breakpoint logic across platform-specific styles
+- Avoid magic numbers in responsive rules
+- Create utility classes or tokens for responsive behavior
+- Document breakpoint decisions in comments
+
+## User Interface Patterns
+
+### Consistent Interaction States
+- Define press, focus, active, and disabled states for all interactive elements
+- Use consistent timing for state transitions (150-300ms)
+- Provide immediate visual feedback for user actions
+- Implement loading states for async operations
+- Maintain state consistency across similar components
+
+### Visual Hierarchy
+- Use size, color, and spacing to establish clear hierarchy
+- Apply consistent spacing scale throughout the interface
+- Ensure important elements have sufficient visual weight
+- Group related content with proximity and visual cues
+- Use typography scale to reinforce content hierarchy
+
+### Empty and Error State Design
+- Show skeleton screens for better perceived performance
+- Provide progress feedback for multi-step processes
+- Design meaningful empty states with clear actions
+- Design error states with clear recovery actions
+
+## Form Design Patterns
+
+### Input Design
+- Label all form inputs clearly and descriptively
+- Use appropriate input types for data (email, tel, date)
+- Implement placeholder text as hints, not replacements for labels
+- Group related fields with visual sections
+- Show input format requirements upfront
+
+### Form Validation and Accessibility
+- Show inline validation feedback near relevant fields
+- Use clear, actionable error messages for form validation
+- Validate on blur for individual fields
+- Preserve user input when showing validation errors
+- Highlight form fields that need attention with visual indicators
+- Associate labels with form controls programmatically
+- Provide clear instructions before form fields
+- Mark required fields clearly and consistently
+
+### Progressive Disclosure
+- Show only essential fields initially
+- Reveal additional options contextually
+- Use progressive steps for complex forms
+- Implement collapsible sections for optional areas
+- Keep forms as concise as possible
+
+## Animation and Motion Patterns
+
+### Performance-Conscious Animation (Performance First)
+- Use GPU-accelerated transitions (translate, scale, opacity)
+- Avoid layout-triggering animations (top/left/width)
+- Keep animation duration under 300ms for UI feedback
+- Use easing curves that feel natural (ease-out for entrances)
+- Provide reduced-motion alternatives
+
+### Meaningful Motion
+- Use animation to guide user attention to important changes
+- Animate state transitions smoothly to maintain context
+- Keep animations subtle and purposeful
+- Ensure animations enhance rather than distract from content
+- Provide clear entry and exit animations for overlays
+
+## Touch and Gesture Patterns
+
+### Touch Target Optimization
+- Make interactive elements at least 44x44 units
+- Add sufficient padding around touchable items
+- Account for thumb reach zones on mobile devices
+- Prevent accidental touches with spacing and alignment
+- Use visual feedback for touch interactions
+
+### Gesture Support
+- Support common touch gestures (tap, swipe, long press)
+- Provide visual feedback during gesture recognition
+- Don't rely solely on gestures for core functionality
+- Implement gesture fallbacks where needed
+
+## Navigation Patterns
+
+### Clear Navigation Hierarchy
+- Implement consistent navigation patterns across screens
+- Use breadcrumbs or back buttons for deep navigation structures
+- Provide clear indicators for current location
+- Ensure navigation is accessible across devices
+- Structure navigation with clear visual hierarchy
+
+### Menu and Dropdown Patterns
+- Support both touch and keyboard navigation where applicable
+- Implement proper focus or highlight management for menus
+- Provide clear visual indicators for expandable items
+- Handle menu positioning for edge cases (viewport boundaries)
+
+## Content Patterns
+
+### Typography and Readability
+- Use adequate line height (1.4-1.6) for body text
+- Implement proper content hierarchy with heading levels
+- Ensure sufficient color contrast for all text
+- Use consistent text alignment and spacing
+- Support user font size preferences
+
+### Image and Media Handling
+- Implement responsive images across device types
+- Use lazy loading where possible
+- Provide alternative text for all meaningful images
+- Optimize image formats and sizes for mobile delivery
+- Handle loading and error states for media content
+
+## Accessibility-First Patterns
+
+### Screen Reader Optimization
+- Add descriptive labels for interactive elements
+- Announce dynamic content changes with live regions or alerts
+- Provide context for complex interactions
+- Design interfaces that work well with assistive technologies
+
+## Performance UI Patterns
+
+### Perceived Performance
+- Show content immediately, even if incomplete
+- Use optimistic UI updates for user actions
+- Implement skeleton screens during data loading
+- Provide immediate feedback for user interactions
+- Use progressive enhancement for non-critical features
+
+### Efficient Updates
+- Minimize layout thrashing and unnecessary re-renders
+- Use virtualization for large lists or scrolls
+- Batch state updates where possible
+- Optimize rendering performance with memoization or pure components

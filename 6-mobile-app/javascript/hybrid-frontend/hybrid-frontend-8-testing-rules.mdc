@@ -1,0 +1,86 @@
+---
+description: USE WHEN writing test for ensuring testing and quality principles to build reliable, maintainable frontend applications with comprehensive test coverage and robust error handling
+globs: ["**/*"]
+alwaysApply: false
+---
+# Hybrid Frontend Testing & Quality Rules
+
+## Testing Strategy and Organization
+
+### Test Pyramid Structure (Testing Pyramid)
+- Write more unit tests than integration tests, more integration than e2e tests
+- Focus unit tests on business logic and pure functions
+- Use integration tests for component interactions
+- Reserve e2e tests for critical user flows only
+- Keep tests focused and isolated
+
+### Test Organization and Structure
+- Co-locate tests with source code files or components
+- Use descriptive test names explaining expected behavior
+- Group related tests using describe blocks
+- Follow Arrange-Act-Assert structure
+- Minimize and clarify test setup
+
+## Component Testing Best Practices
+
+### Testing User Interactions (User-Centric Testing)
+- Test components from a user perspective
+- Focus on behavior rather than implementation details
+- Use accessibility-focused queries (e.g., getByRole, getByLabelText)
+- Test user interactions and resulting state changes
+- Validate visual feedback and side effects
+
+### Mocking and Test Isolation
+- Mock dependencies such as services or storage access
+- Keep mocks simple and aligned to test goals
+- Reset mocks between each test
+- Choose mock level based on usage (function, module, network)
+- Use dependency injection or providers for flexible mocking
+
+## Integration Testing
+
+### Component Integration
+- Validate how components interact and share data
+- Test context consumers and their dependencies
+- Test navigation flows between views
+- Validate hybrid form handling and submission flow
+
+### API Integration Testing
+- Use mocked endpoints or native HTTP mocks
+- Validate request and response logic
+- Test edge cases and error handling
+- Confirm transformation logic works correctly
+- Ensure proper states for loading and errors
+
+## Code Quality Standards
+
+### Code Organization and Structure (Single Responsibility)
+- Follow consistent file/folder naming patterns
+- Group logically related functionality
+- Keep functions/component logic scoped and focused
+- Name variables and functions descriptively
+- Handle all errors and edge cases in logic
+
+### Type Safety and Validation
+- Use TypeScript or PropTypes for type safety
+- Validate parameters and return types where necessary
+- Document expected interfaces
+- Apply runtime validation for critical flows
+- Use schema validation for data coming from APIs
+
+## Error Handling and Debugging
+
+### Comprehensive Error Handling
+- Use error boundaries or hybrid equivalents for UI-level errors
+- Handle async errors and rejections gracefully
+- Display user-friendly error messages
+- Log sufficient context for debugging issues
+- Provide UI fallbacks for error states
+
+### Systematic Logging and Debugging
+- Implement unified logging strategies across environments
+- Log state transitions and key user interactions
+- Use structured log messages
+- Support debug mode toggles for testing environments
+- Write utilities to trace and profile components
+- Use clear naming and consistent commenting for debuggability

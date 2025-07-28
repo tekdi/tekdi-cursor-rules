@@ -1,0 +1,382 @@
+---
+description: USE WHEN designing frontend architecture, implementing design patterns, organizing code structure, or discussing architectural decisions for creating maintainable, scalable component architectures
+globs: ["**/*"]
+alwaysApply: false
+---
+# React Native Architecture Rules
+
+## SOLID Principles in React Native Components
+
+### Single Responsibility Principle (SOLID - S)
+
+- Each React Native component must have ONE clear, well-defined purpose
+- Split components that handle multiple concerns into smaller, focused units
+- Name components based on their single responsibility (Button, Modal, UserCard)
+- Keep business logic separate from UI rendering logic
+
+```tsx
+// Good: Single responsibility
+export const UserAvatar: React.FC<UserAvatarProps> = ({ user, size = 'md' }) => {
+  return (
+    <Image
+      source={{ uri: user.avatar }}
+      accessibilityLabel={`${user.name} avatar`}
+      style={[styles.avatar, sizeStyles[size]]}
+    />
+  );
+};
+```
+
+### Open/Closed Principle (SOLID - O)
+
+- Design React Native components for extension without modification
+- Use composition patterns over inheritance
+- Leverage props and children for configuration
+
+```tsx
+interface ButtonProps {
+  variant?: 'primary' | 'secondary';
+  children: React.ReactNode;
+  leftIcon?: React.ReactNode;
+}
+
+export const Button: React.FC<ButtonProps> = ({
+  variant = 'primary',
+  children,
+  leftIcon,
+  ...props
+}) => (
+  <TouchableOpacity style={[styles.base, styles[variant]]} {...props}>
+    {leftIcon && <View style={styles.icon}>{leftIcon}</View>}
+    <Text>{children}</Text>
+  </TouchableOpacity>
+);
+```
+
+### Liskov Substitution Principle (SOLID - L)
+
+- React Native components should be replaceable with their implementations without breaking functionality
+- Ensure consistent behavior across component variants
+
+```tsx
+interface BaseInputProps {
+  value: string;
+  onChangeText: (value: string) => void;
+  editable?: boolean;
+}
+
+export const TextInputField: React.FC<BaseInputProps> = (props) => (
+  <TextInput {...props} />
+);
+
+export const EmailInputField: React.FC<BaseInputProps> = (props) => (
+  <TextInput keyboardType="email-address" {...props} />
+);
+```
+
+### Interface Segregation Principle (SOLID - I)
+
+- Create focused, minimal prop interfaces rather than large, monolithic ones
+- Split complex prop interfaces into smaller, specific contracts
+
+```tsx
+interface BaseComponentProps {
+  style?: ViewStyle;
+  children?: React.ReactNode;
+}
+
+interface TouchableProps {
+  onPress: (event: GestureResponderEvent) => void;
+  disabled?: boolean;
+}
+
+interface FormFieldProps {
+  name: string;
+  label: string;
+  error?: string;
+}
+
+type TouchableButton = BaseComponentProps & TouchableProps;
+```
+
+### Dependency Inversion (SOLID - D)
+
+- Depend on abstractions, not concrete implementations
+- Inject dependencies through props or context
+
+```tsx
+interface UserService {
+  fetchUser: (id: string) => Promise<User>;
+  updateUser: (user: User) => Promise<User>;
+}
+
+interface UserProfileProps {
+  userId: string;
+  userService: UserService;
+}
+
+export const UserProfile: React.FC<UserProfileProps> = ({ userId, userService }) => {
+  const { data: user, loading } = useQuery(['user', userId], () => userService.fetchUser(userId));
+  // Component implementation
+};
+```
+
+## React Native Component Structure & Organization
+
+### Atomic Design with React Native
+
+- **Atoms**: Basic React Native components (Button, Input, Icon)
+- **Molecules**: Combinations of atoms (SearchBox, FormField)
+- **Organisms**: Complex UI sections (Header, UserForm, ProductList)
+- **Templates**: Page layouts with placeholder content
+- **Screens**: Complete route components with real data
+
+```tsx
+// Atom
+export const Button: React.FC<ButtonProps> = ({ children, ...props }) => (
+  <TouchableOpacity {...props}><Text>{children}</Text></TouchableOpacity>
+);
+
+// Molecule
+export const SearchBox: React.FC<SearchBoxProps> = ({ onSearch }) => (
+  <View style={styles.container}>
+    <TextInput placeholder="Search..." style={styles.input} />
+    <Button onPress={onSearch}>Search</Button>
+  </View>
+);
+```
+
+### File Organization
+
+- Use PascalCase for component files: `UserProfile.tsx`
+- Co-locate related files in component folders
+- Export components as named exports, not default exports
+
+```
+/components
+  /atoms
+    /Button
+      - Button.tsx
+      - Button.test.tsx
+      - index.ts
+  /molecules
+  /organisms
+```
+
+### Component Interface Design
+
+- Define props interfaces with descriptive names ending in "Props"
+- Use strict TypeScript typing for all props
+
+```tsx
+interface UserCardProps {
+  user: User;
+  onEdit?: (user: User) => void;
+  showActions?: boolean;
+  style?: ViewStyle;
+}
+
+export const UserCard: React.FC<UserCardProps> = ({
+  user,
+  onEdit,
+  showActions = true,
+  style
+}) => {
+  // Component implementation
+};
+```
+
+## React Native Data Flow Architecture
+
+### Component Communication
+
+- Pass data down through props
+- Use callback functions for upward communication
+- Avoid deep prop drilling beyond 2-3 levels
+- Use React Context for cross-cutting concerns
+
+```tsx
+interface TodoListProps {
+  todos: Todo[];
+  onToggle: (id: string) => void;
+  onDelete: (id: string) => void;
+}
+
+export const TodoList: React.FC<TodoListProps> = ({ todos, onToggle, onDelete }) => (
+  <FlatList
+    data={todos}
+    keyExtractor={item => item.id}
+    renderItem={({ item }) => (
+      <TodoItem
+        todo={item}
+        onToggle={() => onToggle(item.id)}
+        onDelete={() => onDelete(item.id)}
+      />
+    )}
+  />
+);
+```
+
+### Custom Hooks for Logic Reuse
+
+- Extract reusable stateful logic into custom hooks
+- Prefix custom hook names with "use"
+- Keep custom hooks focused on single responsibility
+
+```tsx
+interface UseApiResult<T> {
+  data: T | null;
+  loading: boolean;
+  error: string | null;
+  refetch: () => void;
+}
+
+export const useApi = <T>(url: string): UseApiResult<T> => {
+  const [data, setData] = useState<T | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(url);
+      const result = await response.json();
+      setData(result);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error');
+    } finally {
+      setLoading(false);
+    }
+  }, [url]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  return { data, loading, error, refetch: fetchData };
+};
+```
+
+## React Native Component Lifecycle & Side Effects
+
+### Effect Management with Hooks
+
+- Use `useEffect` for side effects and lifecycle events
+- Always include dependency arrays in `useEffect`
+- Clean up subscriptions and event listeners
+
+```tsx
+export const UserProfile: React.FC<{ userId: string }> = ({ userId }) => {
+  const [user, setUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    const abortController = new AbortController();
+
+    const fetchUser = async () => {
+      try {
+        const response = await fetch(`/api/users/${userId}`, {
+          signal: abortController.signal
+        });
+        const userData = await response.json();
+        setUser(userData);
+      } catch (error: any) {
+        if (error.name !== 'AbortError') {
+          console.error('Failed to fetch user:', error);
+        }
+      }
+    };
+
+    fetchUser();
+    return () => abortController.abort();
+  }, [userId]);
+
+  return user ? <Text>{user.name}</Text> : <Text>Loading...</Text>;
+};
+```
+
+## React Native Error Handling
+
+### Error Boundaries
+
+- Implement Error Boundaries at strategic component levels
+- Provide fallback UI for component errors
+
+```tsx
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error?: Error;
+}
+
+export class ErrorBoundary extends React.Component<
+  React.PropsWithChildren<{}>,
+  ErrorBoundaryState
+> {
+  constructor(props: React.PropsWithChildren<{}>) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('Component error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <View style={styles.errorFallback}>
+          <Text>Something went wrong.</Text>
+          <Button onPress={() => this.setState({ hasError: false })}>
+            Try again
+          </Button>
+        </View>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+```
+
+## Testing Architecture
+
+### Testable React Native Component Design
+
+- Design components with testing in mind
+- Use dependency injection for external services
+- Keep business logic in custom hooks
+
+```tsx
+interface UserListProps {
+  userService: UserService;
+}
+
+export const UserList: React.FC<UserListProps> = ({ userService }) => {
+  const { data: users, loading, error } = useUsers(userService);
+
+  if (loading) return <Text>Loading...</Text>;
+  if (error) return <Text>Error: {error}</Text>;
+
+  return (
+    <FlatList
+      data={users}
+      keyExtractor={user => user.id}
+      renderItem={({ item }) => <Text>{item.name}</Text>}
+    />
+  );
+};
+
+// Test
+it('UserList displays users when loaded', async () => {
+  const mockUserService = {
+    fetchUsers: jest.fn().mockResolvedValue([{ id: '1', name: 'John' }])
+  };
+
+  const { findByText } = render(<UserList userService={mockUserService} />);
+
+  expect(await findByText('John')).toBeTruthy();
+});
+```

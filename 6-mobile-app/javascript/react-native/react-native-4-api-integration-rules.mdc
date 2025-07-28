@@ -1,0 +1,276 @@
+---
+description: USE WHEN intergrating APIs
+globs: ["**/*"]
+alwaysApply: false
+---
+# React Native API Integration and Service Layer Rules
+
+## React Query/TanStack Query Integration
+
+### Service Layer Architecture
+- Create abstraction layer for all API interactions
+- Handle errors at service boundaries, not in components
+- Transform API responses to match application models
+- Implement consistent request/response patterns
+
+```tsx
+interface ApiResponse<T> {
+  data: T;
+  status: number;
+  message?: string;
+}
+
+interface User {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  avatar?: string;
+}
+
+interface CreateUserRequest {
+  email: string;
+  firstName: string;
+  lastName: string;
+  password: string;
+}
+
+class UserService {
+  private baseURL = '/api/users';
+
+  async getUsers(): Promise<User[]> {
+    const response = await fetch(this.baseURL);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch users: ${response.statusText}`);
+    }
+    const apiResponse: ApiResponse<User[]> = await response.json();
+    return apiResponse.data;
+  }
+
+  async getUsersPaginated(page: number = 0, limit: number = 20): Promise<User[]> {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      limit: limit.toString()
+    });
+
+    const response = await fetch(`${this.baseURL}?${params}`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch paginated users: ${response.statusText}`);
+    }
+    const apiResponse: ApiResponse<User[]> = await response.json();
+    return apiResponse.data;
+  }
+
+  async getUser(id: string): Promise<User> {
+    const response = await fetch(`${this.baseURL}/${id}`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch user: ${response.statusText}`);
+    }
+    const apiResponse: ApiResponse<User> = await response.json();
+    return apiResponse.data;
+  }
+
+  async createUser(userData: CreateUserRequest): Promise<User> {
+    const response = await fetch(this.baseURL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(userData)
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to create user');
+    }
+
+    const apiResponse: ApiResponse<User> = await response.json();
+    return apiResponse.data;
+  }
+
+  async updateUser(id: string, userData: Partial<User>): Promise<User> {
+    const response = await fetch(`${this.baseURL}/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(userData)
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to update user: ${response.statusText}`);
+    }
+
+    const apiResponse: ApiResponse<User> = await response.json();
+    return apiResponse.data;
+  }
+}
+
+export const userService = new UserService();
+```
+
+### React Query Hooks
+- Use React Query for server state management
+- Implement proper loading, error, and success states
+- Use optimistic updates for better UX
+
+```tsx
+import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
+
+export const useUsers = () => {
+  return useQuery({
+    queryKey: ['users'],
+    queryFn: () => userService.getUsers(),
+    staleTime: 5 * 60 * 1000,
+    retry: 3,
+    retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000)
+  });
+};
+
+export const useUser = (userId: string) => {
+  return useQuery({
+    queryKey: ['users', userId],
+    queryFn: () => userService.getUser(userId),
+    enabled: !!userId,
+    staleTime: 5 * 60 * 1000
+  });
+};
+
+export const useCreateUser = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (userData: CreateUserRequest) => userService.createUser(userData),
+    onSuccess: (newUser) => {
+      queryClient.setQueryData(['users'], (oldUsers: User[] | undefined) => {
+        return oldUsers ? [...oldUsers, newUser] : [newUser];
+      });
+      queryClient.invalidateQueries(['users']);
+    }
+  });
+};
+
+export const useUpdateUser = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, userData }: { id: string; userData: Partial<User> }) =>
+      userService.updateUser(id, userData),
+    onMutate: async ({ id, userData }) => {
+      await queryClient.cancelQueries(['users', id]);
+      const previousUser = queryClient.getQueryData(['users', id]);
+      queryClient.setQueryData(['users', id], (old: User | undefined) => {
+        return old ? { ...old, ...userData } : undefined;
+      });
+      return { previousUser };
+    },
+    onError: (error, { id }, context) => {
+      if (context?.previousUser) {
+        queryClient.setQueryData(['users', id], context.previousUser);
+      }
+    },
+    onSettled: (data, error, { id }) => {
+      queryClient.invalidateQueries(['users', id]);
+      queryClient.invalidateQueries(['users']);
+    }
+  });
+};
+```
+
+## Error Handling Strategies
+
+### Comprehensive Error Handling
+- Catch and handle errors at appropriate levels
+- Provide meaningful error messages to users
+- Implement retry mechanisms for transient failures
+
+```tsx
+import { useEffect, useState, useCallback } from 'react';
+import { useQuery } from '@tanstack/react-query';
+
+export const useApiError = () => {
+  const [error, setError] = useState<string | null>(null);
+
+  const handleError = useCallback((error: unknown) => {
+    if (error instanceof Error) {
+      setError(error.message);
+    } else {
+      setError('An unexpected error occurred');
+    }
+  }, []);
+
+  const clearError = useCallback(() => {
+    setError(null);
+  }, []);
+
+  return { error, handleError, clearError };
+};
+
+export const useNetworkAwareQuery = <T>(
+  queryKey: string[],
+  queryFn: () => Promise<T>,
+  options: { retries?: number; retryDelay?: number } = {}
+) => {
+  const [isOnline, setIsOnline] = useState(true);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    const subscription = NetInfo.addEventListener(state => {
+      setIsOnline(state.isConnected ?? true);
+    });
+
+    return () => subscription();
+  }, []);
+
+  return useQuery({
+    queryKey,
+    queryFn,
+    enabled: isOnline,
+    retry: (failureCount, error) => {
+      if (!isOnline) return false;
+      if (error instanceof Error && error.message.includes('Network')) {
+        return failureCount < (options.retries || 3);
+      }
+      return false;
+    },
+    retryDelay: options.retryDelay || 1000
+  });
+};
+```
+
+## Request Optimization
+
+### Request Deduplication and Batching
+- Implement request deduplication for concurrent requests
+- Batch multiple API calls when possible
+
+```tsx
+class RequestDeduplicator {
+  private pendingRequests = new Map<string, Promise<any>>();
+
+  async dedupe<T>(key: string, requestFn: () => Promise<T>): Promise<T> {
+    if (this.pendingRequests.has(key)) {
+      return this.pendingRequests.get(key)!;
+    }
+
+    const request = requestFn().finally(() => {
+      this.pendingRequests.delete(key);
+    });
+
+    this.pendingRequests.set(key, request);
+    return request;
+  }
+}
+
+const requestDeduplicator = new RequestDeduplicator();
+
+export const useInfiniteUsers = (pageSize: number = 20) => {
+  return useInfiniteQuery({
+    queryKey: ['users', 'infinite'],
+    queryFn: ({ pageParam = 0 }) =>
+      userService.getUsersPaginated(pageParam, pageSize),
+    getNextPageParam: (lastPage, allPages) => {
+      return lastPage.length === pageSize ? allPages.length : undefined;
+    },
+    staleTime: 5 * 60 * 1000
+  });
+};
+```
