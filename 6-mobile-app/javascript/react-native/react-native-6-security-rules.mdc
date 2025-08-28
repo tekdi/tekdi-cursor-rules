@@ -3,44 +3,51 @@ description: USE WHEN securing frontend applications that protect both your user
 globs: ["**/*"]
 alwaysApply: false
 ---
+
 # React Native Security Rules
 
 ## Input Security and XSS Prevention
 
 ### JSX and `dangerouslySetInnerHTML`
+
 - Not applicable in React Native (no HTML rendering)
 - Avoid HTML-based user-generated content entirely
 - Always validate and sanitize user inputs before rendering or processing
 
 ### Input sanitization hook
+
 ```tsx
-import { useState, useCallback } from 'react';
-import DOMPurify from 'dompurify'; // Optional for server-side validation only
+import { useState, useCallback } from "react";
+// Client-side sanitization in React Native should focus on basic input validation
 
 export const useSanitizedInput = (
-  initialValue: string = '',
+  initialValue: string = "",
   options: { allowHtml?: boolean; stripHtml?: boolean } = {}
 ) => {
   const [value, setValue] = useState(initialValue);
 
-  const updateValue = useCallback((newValue: string) => {
-    let sanitized: string = newValue;
+  const updateValue = useCallback(
+    (newValue: string) => {
+      let sanitized: string = newValue;
 
-    if (options.stripHtml) {
-      sanitized = newValue.replace(/<[^>]*>/g, '');
-    }
+      if (options.stripHtml) {
+        sanitized = newValue.replace(/<[^>]*>/g, "");
+      }
 
-    setValue(sanitized);
-  }, [options.stripHtml]);
+      setValue(sanitized);
+    },
+    [options.stripHtml]
+  );
 
   return [value, updateValue] as const;
 };
 ```
 
 ### Safe Input Component
+
 ```tsx
-import React from 'react';
-import { TextInput } from 'react-native';
+import React from "react";
+import { TextInput } from "react-native";
 
 interface SafeInputProps {
   value: string;
@@ -55,7 +62,7 @@ export const SafeInput: React.FC<SafeInputProps> = ({
   onChange,
   placeholder,
   maxLength = 500,
-  allowedChars = /^[a-zA-Z0-9\s\-_@.]+$/
+  allowedChars = /^[a-zA-Z0-9\s\-_@.]+$/,
 }) => {
   const handleChange = (text: string) => {
     if (text.length > maxLength) return;
@@ -75,17 +82,33 @@ export const SafeInput: React.FC<SafeInputProps> = ({
 ```
 
 ## URL Safety
+
 - Validate URLs before opening
 - Prevent `javascript:` protocol
 
 ```tsx
-import { Linking, Alert } from 'react-native';
+import { Linking, Alert } from "react-native";
 
+// Note: URL constructor is only available on Hermes runtime or when polyfilled.
+// This implementation provides a fallback for apps running on JSC.
 export const isSafeUrl = (url: string): boolean => {
+  // Try using URL constructor if available
+  if (typeof URL === "function") {
+    try {
+      const parsedUrl = new URL(url);
+      const safeProtocols = ["http:", "https:", "mailto:"];
+      return safeProtocols.includes(parsedUrl.protocol);
+    } catch {
+      return false;
+    }
+  }
+
+  // Fallback for JSC: Basic protocol check using regex
   try {
-    const parsedUrl = new URL(url);
-    const safeProtocols = ['http:', 'https:', 'mailto:'];
-    return safeProtocols.includes(parsedUrl.protocol);
+    const protocolMatch = url.match(/^([^:]+):/);
+    if (!protocolMatch) return false;
+    const protocol = protocolMatch[0].toLowerCase();
+    return ["http:", "https:", "mailto:"].includes(protocol);
   } catch {
     return false;
   }
@@ -93,7 +116,7 @@ export const isSafeUrl = (url: string): boolean => {
 
 export const openSafeLink = async (url: string) => {
   if (!isSafeUrl(url)) {
-    Alert.alert('Unsafe link blocked');
+    Alert.alert("Unsafe link blocked");
     return;
   }
 
@@ -101,7 +124,7 @@ export const openSafeLink = async (url: string) => {
   if (supported) {
     await Linking.openURL(url);
   } else {
-    Alert.alert('Cannot open URL');
+    Alert.alert("Cannot open URL");
   }
 };
 ```
@@ -109,11 +132,12 @@ export const openSafeLink = async (url: string) => {
 ## Authentication and Authorization
 
 ### Secure Token Handling
+
 ```tsx
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 class SecureTokenStorage {
-  static readonly ACCESS_TOKEN_KEY = 'access_token';
+  static readonly ACCESS_TOKEN_KEY = "access_token";
 
   static async setTokens(accessToken: string) {
     await AsyncStorage.setItem(this.ACCESS_TOKEN_KEY, accessToken);
@@ -130,8 +154,9 @@ class SecureTokenStorage {
 ```
 
 ### Auth Hook
+
 ```tsx
-import { useState, useCallback } from 'react';
+import { useState, useCallback } from "react";
 
 interface AuthState {
   user: any;
@@ -149,12 +174,12 @@ export const useAuth = () => {
   });
 
   const login = useCallback(async (email: string, password: string) => {
-    setAuthState(prev => ({ ...prev, isLoading: true }));
+    setAuthState((prev) => ({ ...prev, isLoading: true }));
     try {
-      const response = await fetch('https://example.com/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
+      const response = await fetch("https://example.com/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
       });
 
       const { accessToken, user } = await response.json();
@@ -164,14 +189,14 @@ export const useAuth = () => {
         user,
         accessToken,
         isAuthenticated: true,
-        isLoading: false
+        isLoading: false,
       });
     } catch (err) {
       setAuthState({
         user: null,
         accessToken: null,
         isAuthenticated: false,
-        isLoading: false
+        isLoading: false,
       });
     }
   }, []);
@@ -182,7 +207,7 @@ export const useAuth = () => {
       user: null,
       accessToken: null,
       isAuthenticated: false,
-      isLoading: false
+      isLoading: false,
     });
   }, []);
 
@@ -191,23 +216,24 @@ export const useAuth = () => {
 ```
 
 ## Form Security
+
 - Use input validation
 - Protect against excessive login attempts
 
 ```tsx
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo } from "react";
 
 export const useRateLimit = (maxAttempts = 5, windowMs = 15 * 60 * 1000) => {
   const [attempts, setAttempts] = useState<number[]>([]);
 
   const isRateLimited = useMemo(() => {
     const now = Date.now();
-    return attempts.filter(t => now - t < windowMs).length >= maxAttempts;
+    return attempts.filter((t) => now - t < windowMs).length >= maxAttempts;
   }, [attempts, windowMs, maxAttempts]);
 
   const recordAttempt = useCallback(() => {
     const now = Date.now();
-    setAttempts(prev => [...prev.filter(t => now - t < windowMs), now]);
+    setAttempts((prev) => [...prev.filter((t) => now - t < windowMs), now]);
   }, [windowMs]);
 
   const resetAttempts = useCallback(() => setAttempts([]), []);
@@ -228,12 +254,15 @@ class SecureApiClient {
     this.getAuthToken = getAuthToken;
   }
 
-  private async makeRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  private async makeRequest<T>(
+    endpoint: string,
+    options: RequestInit = {}
+  ): Promise<T> {
     const token = await this.getAuthToken();
     const config: RequestInit = {
       ...options,
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
         ...(token && { Authorization: `Bearer ${token}` }),
         ...options.headers,
       },
@@ -245,12 +274,12 @@ class SecureApiClient {
   }
 
   async get<T>(endpoint: string): Promise<T> {
-    return this.makeRequest<T>(endpoint, { method: 'GET' });
+    return this.makeRequest<T>(endpoint, { method: "GET" });
   }
 
   async post<T>(endpoint: string, data: any): Promise<T> {
     return this.makeRequest<T>(endpoint, {
-      method: 'POST',
+      method: "POST",
       body: JSON.stringify(data),
     });
   }
@@ -263,7 +292,7 @@ export const useSecureApi = () => {
 
   const apiClient = useMemo(() => {
     return new SecureApiClient(
-      'https://example.com/api',
+      "https://example.com/api",
       async () => accessToken
     );
   }, [accessToken]);
@@ -275,15 +304,15 @@ export const useSecureApi = () => {
 ```tsx
 export const useSensitiveData = () => {
   const maskEmail = (email: string): string => {
-    const [local, domain] = email.split('@');
+    const [local, domain] = email.split("@");
     return local.length > 2
-      ? `${local.slice(0, 2)}${'*'.repeat(local.length - 2)}@${domain}`
+      ? `${local.slice(0, 2)}${"*".repeat(local.length - 2)}@${domain}`
       : email;
   };
 
   const maskCard = (card: string): string => {
-    const clean = card.replace(/\D/g, '');
-    return `${'*'.repeat(clean.length - 4)}${clean.slice(-4)}`;
+    const clean = card.replace(/\D/g, "");
+    return `${"*".repeat(clean.length - 4)}${clean.slice(-4)}`;
   };
 
   return { maskEmail, maskCard };

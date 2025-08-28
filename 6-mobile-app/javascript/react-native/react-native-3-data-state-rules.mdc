@@ -3,11 +3,13 @@ description: USE WHEN handling application state and data flow for efficient, pr
 globs: ["**/*"]
 alwaysApply: false
 ---
+
 # React Native Data & State Management Rules
 
 ## React State Management Principles
 
 ### State Ownership and Boundaries
+
 - Keep state as close to its usage as possible with `useState`
 - Lift state up only when multiple components genuinely need access
 - Avoid prop drilling beyond 2-3 component levels
@@ -38,8 +40,8 @@ const TodoApp = () => {
   const [todos, setTodos] = useState([]);
 
   const toggleTodo = (id) => {
-    setTodos(currentTodos =>
-      currentTodos.map(todo =>
+    setTodos((currentTodos) =>
+      currentTodos.map((todo) =>
         todo.id === id ? { ...todo, completed: !todo.completed } : todo
       )
     );
@@ -55,6 +57,7 @@ const TodoApp = () => {
 ```
 
 ### Immutability Patterns with React State
+
 - Always use functional updates with `useState` and `useReducer`
 - Never mutate existing state objects directly
 - Use spread operators for updates
@@ -62,42 +65,46 @@ const TodoApp = () => {
 ```tsx
 const UserProfile = () => {
   const [user, setUser] = useState({
-    name: '',
-    email: '',
-    preferences: { theme: 'light', notifications: true }
+    name: "",
+    email: "",
+    preferences: { theme: "light", notifications: true },
   });
 
   const updateName = (name) => {
-    setUser(prevUser => ({ ...prevUser, name }));
+    setUser((prevUser) => ({ ...prevUser, name }));
   };
 
   const updatePreferences = (newPreferences) => {
-    setUser(prevUser => ({
+    setUser((prevUser) => ({
       ...prevUser,
-      preferences: { ...prevUser.preferences, ...newPreferences }
+      preferences: { ...prevUser.preferences, ...newPreferences },
     }));
   };
 
   const toggleNotifications = () => {
-    setUser(prevUser => ({
+    setUser((prevUser) => ({
       ...prevUser,
       preferences: {
         ...prevUser.preferences,
-        notifications: !prevUser.preferences.notifications
-      }
+        notifications: !prevUser.preferences.notifications,
+      },
     }));
   };
 
   return (
     <View>
       <TextInput value={user.name} onChangeText={updateName} />
-      <Button title={user.preferences.notifications ? 'Disable' : 'Enable'} onPress={toggleNotifications} />
+      <Button
+        title={user.preferences.notifications ? "Disable" : "Enable"}
+        onPress={toggleNotifications}
+      />
     </View>
   );
 };
 ```
 
 ### State Types and Separation
+
 - Distinguish between UI state and business/domain state
 - Use local state for UI concerns, global state for shared data
 - Handle server state with React Query/TanStack Query
@@ -106,7 +113,7 @@ const UserProfile = () => {
 ```tsx
 // UI State - local to component
 const SearchBox = ({ onSearch }) => {
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState("");
   const [isFocused, setIsFocused] = useState(false);
 
   return (
@@ -122,15 +129,19 @@ const SearchBox = ({ onSearch }) => {
 
 // Business State - shared across components
 const useUserPreferences = () => {
-  const [preferences, setPreferences] = useState(() => {
-    const saved = AsyncStorage.getItem('userPreferences');
-    return saved ? JSON.parse(saved) : defaultPreferences;
-  });
+  const [preferences, setPreferences] = useState(defaultPreferences);
+
+  useEffect(() => {
+    (async () => {
+      const saved = await AsyncStorage.getItem("userPreferences");
+      if (saved) setPreferences(JSON.parse(saved));
+    })();
+  }, []);
 
   const updatePreferences = useCallback((updates) => {
-    setPreferences(prev => {
+    setPreferences((prev) => {
       const newPreferences = { ...prev, ...updates };
-      AsyncStorage.setItem('userPreferences', JSON.stringify(newPreferences));
+      AsyncStorage.setItem("userPreferences", JSON.stringify(newPreferences));
       return newPreferences;
     });
   }, []);
@@ -142,6 +153,7 @@ const useUserPreferences = () => {
 ## React Data Flow Architecture
 
 ### Unidirectional Data Flow with Hooks
+
 - Data flows down through props
 - Events flow up through callback props
 - Use custom hooks to encapsulate stateful logic
@@ -155,31 +167,34 @@ const useTodos = () => {
       id: Date.now().toString(),
       text,
       completed: false,
-      createdAt: new Date()
+      createdAt: new Date(),
     };
-    setTodos(prev => [...prev, newTodo]);
+    setTodos((prev) => [...prev, newTodo]);
   }, []);
 
   const toggleTodo = useCallback((id) => {
-    setTodos(prev => prev.map(todo =>
-      todo.id === id ? { ...todo, completed: !todo.completed } : todo
-    ));
+    setTodos((prev) =>
+      prev.map((todo) =>
+        todo.id === id ? { ...todo, completed: !todo.completed } : todo
+      )
+    );
   }, []);
 
   const deleteTodo = useCallback((id) => {
-    setTodos(prev => prev.filter(todo => todo.id !== id));
+    setTodos((prev) => prev.filter((todo) => todo.id !== id));
   }, []);
 
   return {
     todos,
     addTodo,
     toggleTodo,
-    deleteTodo
+    deleteTodo,
   };
 };
 ```
 
 ### Complex State with useReducer
+
 - Use `useReducer` for complex state with multiple actions
 - Implement action creators for type safety
 - Keep reducer functions pure and predictable
@@ -187,25 +202,28 @@ const useTodos = () => {
 ```tsx
 const todoReducer = (state, action) => {
   switch (action.type) {
-    case 'ADD_TODO':
+    case "ADD_TODO":
       return {
         ...state,
-        todos: [...state.todos, {
-          id: Date.now().toString(),
-          text: action.payload.text,
-          completed: false,
-          createdAt: new Date()
-        }]
+        todos: [
+          ...state.todos,
+          {
+            id: Date.now().toString(),
+            text: action.payload.text,
+            completed: false,
+            createdAt: new Date(),
+          },
+        ],
       };
 
-    case 'TOGGLE_TODO':
+    case "TOGGLE_TODO":
       return {
         ...state,
-        todos: state.todos.map(todo =>
+        todos: state.todos.map((todo) =>
           todo.id === action.payload.id
             ? { ...todo, completed: !todo.completed }
             : todo
-        )
+        ),
       };
 
     default:
@@ -216,11 +234,11 @@ const todoReducer = (state, action) => {
 const useTodoReducer = () => {
   const [state, dispatch] = useReducer(todoReducer, {
     todos: [],
-    filter: 'all'
+    filter: "all",
   });
 
-  const addTodo = (text) => dispatch({ type: 'ADD_TODO', payload: { text } });
-  const toggleTodo = (id) => dispatch({ type: 'TOGGLE_TODO', payload: { id } });
+  const addTodo = (text) => dispatch({ type: "ADD_TODO", payload: { text } });
+  const toggleTodo = (id) => dispatch({ type: "TOGGLE_TODO", payload: { id } });
 
   return { state, addTodo, toggleTodo };
 };
@@ -229,6 +247,7 @@ const useTodoReducer = () => {
 ## React Context for Global State
 
 ### Context Provider Pattern
+
 - Use React Context for truly global state
 - Create typed context with custom hooks
 - Split contexts by concern to avoid unnecessary re-renders
@@ -239,7 +258,7 @@ const AuthContext = createContext();
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 };
@@ -254,9 +273,9 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await authApi.login({ email, password });
       setUser(response.user);
-      await AsyncStorage.setItem('authToken', response.token);
+      await AsyncStorage.setItem("authToken", response.token);
     } catch (err) {
-      setError(err.message || 'Login failed');
+      setError(err.message || "Login failed");
     } finally {
       setIsLoading(false);
     }
@@ -264,7 +283,7 @@ export const AuthProvider = ({ children }) => {
 
   const logout = () => {
     setUser(null);
-    AsyncStorage.removeItem('authToken');
+    AsyncStorage.removeItem("authToken");
   };
 
   return (
@@ -278,6 +297,7 @@ export const AuthProvider = ({ children }) => {
 ## React State Persistence
 
 ### Local Storage with React Hooks
+
 - Use `AsyncStorage` for state persistence
 
 ```tsx
@@ -303,6 +323,7 @@ const useAsyncStorage = (key, initialValue) => {
 ```
 
 ### Session Management with React
+
 - Handle session state with `AsyncStorage` and context
 
 ```tsx
@@ -312,7 +333,7 @@ const useSessionManagement = () => {
 
   useEffect(() => {
     const checkAuth = async () => {
-      const token = await AsyncStorage.getItem('authToken');
+      const token = await AsyncStorage.getItem("authToken");
       if (!token) {
         setIsAuthenticated(false);
         return;
@@ -322,7 +343,7 @@ const useSessionManagement = () => {
         setUser(response.user);
         setIsAuthenticated(true);
       } catch {
-        await AsyncStorage.removeItem('authToken');
+        await AsyncStorage.removeItem("authToken");
         setIsAuthenticated(false);
       }
     };
@@ -331,13 +352,13 @@ const useSessionManagement = () => {
 
   const login = async (credentials) => {
     const response = await authApi.login(credentials);
-    await AsyncStorage.setItem('authToken', response.token);
+    await AsyncStorage.setItem("authToken", response.token);
     setUser(response.user);
     setIsAuthenticated(true);
   };
 
   const logout = () => {
-    AsyncStorage.removeItem('authToken');
+    AsyncStorage.removeItem("authToken");
     setUser(null);
     setIsAuthenticated(false);
   };
@@ -347,7 +368,7 @@ const useSessionManagement = () => {
     user,
     login,
     logout,
-    isLoading: isAuthenticated === null
+    isLoading: isAuthenticated === null,
   };
 };
 ```

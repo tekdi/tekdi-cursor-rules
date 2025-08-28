@@ -3,37 +3,47 @@ description: USE WHEN implementing UI patterns and user interactions to create i
 globs: ["**/*"]
 alwaysApply: false
 ---
+
 # React Native UI/UX Patterns Rules
 
 ```tsx
 // Required imports for the examples below
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, TextInput, ActivityIndicator, FlatList, StyleSheet } from 'react-native';
+import React, { useState } from "react";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  TextInput,
+  ActivityIndicator,
+  FlatList,
+  StyleSheet,
+} from "react-native";
 ```
 
 ## React Native Responsive Design Patterns
 
 ### Mobile-First Components
+
 - Design components for mobile viewports by default
 - Use `Dimensions` or `useWindowDimensions` for layout-based decisions
 - Implement props to conditionally render layout variations
 
 ```tsx
-import { useWindowDimensions } from 'react-native';
+import { useWindowDimensions } from "react-native";
 
 interface ResponsiveCardProps {
   title: string;
   content: string;
-  layout?: 'mobile' | 'desktop' | 'auto';
+  layout?: "mobile" | "desktop" | "auto";
 }
 
 export const ResponsiveCard: React.FC<ResponsiveCardProps> = ({
   title,
   content,
-  layout = 'auto'
+  layout = "auto",
 }) => {
   const { width } = useWindowDimensions();
-  const isMobile = layout === 'mobile' || (layout === 'auto' && width < 768);
+  const isMobile = layout === "mobile" || (layout === "auto" && width < 768);
 
   return (
     <View style={[styles.card, isMobile ? styles.column : styles.row]}>
@@ -45,30 +55,31 @@ export const ResponsiveCard: React.FC<ResponsiveCardProps> = ({
 
 const styles = StyleSheet.create({
   card: { padding: 16, borderWidth: 1, borderRadius: 8 },
-  row: { flexDirection: 'row' },
-  column: { flexDirection: 'column' },
-  title: { fontSize: 18, fontWeight: '600', marginBottom: 8 },
+  row: { flexDirection: "row" },
+  column: { flexDirection: "column" },
+  title: { fontSize: 18, fontWeight: "600", marginBottom: 8 },
   content: { flex: 1 },
 });
 ```
 
 ### Flexible Layout Components
+
 - Use Flexbox layout for responsive spacing and alignment
 - Create reusable layout components with props for direction and spacing
 
 ```tsx
 interface FlexLayoutProps {
   children: React.ReactNode;
-  direction?: 'row' | 'column';
-  justify?: 'flex-start' | 'center' | 'flex-end' | 'space-between';
+  direction?: "row" | "column";
+  justify?: "flex-start" | "center" | "flex-end" | "space-between";
   gap?: number;
 }
 
 export const FlexLayout: React.FC<FlexLayoutProps> = ({
   children,
-  direction = 'row',
-  justify = 'flex-start',
-  gap = 8
+  direction = "row",
+  justify = "flex-start",
+  spacing = 8,
 }) => (
   <View style={{ flexDirection: direction, justifyContent: justify, gap }}>
     {children}
@@ -79,6 +90,7 @@ export const FlexLayout: React.FC<FlexLayoutProps> = ({
 ## React Native User Interface Patterns
 
 ### Interactive State Management
+
 - Handle interactive states using React state
 
 ```tsx
@@ -87,7 +99,7 @@ interface InteractiveButtonProps {
   onPress?: () => void;
   disabled?: boolean;
   loading?: boolean;
-  variant?: 'primary' | 'secondary' | 'danger';
+  variant?: "primary" | "secondary" | "danger";
 }
 
 export const InteractiveButton: React.FC<InteractiveButtonProps> = ({
@@ -95,14 +107,14 @@ export const InteractiveButton: React.FC<InteractiveButtonProps> = ({
   onPress,
   disabled = false,
   loading = false,
-  variant = 'primary'
+  variant = "primary",
 }) => {
   const [isPressed, setIsPressed] = useState(false);
 
   const backgroundColor = {
-    primary: '#3B82F6',
-    secondary: '#E5E7EB',
-    danger: '#EF4444'
+    primary: "#3B82F6",
+    secondary: "#E5E7EB",
+    danger: "#EF4444",
   }[variant];
 
   return (
@@ -117,7 +129,7 @@ export const InteractiveButton: React.FC<InteractiveButtonProps> = ({
         borderRadius: 6,
         backgroundColor,
         opacity: disabled ? 0.5 : 1,
-        transform: [{ scale: isPressed ? 0.95 : 1 }]
+        transform: [{ scale: isPressed ? 0.95 : 1 }],
       }}
     >
       {loading ? <ActivityIndicator color="#fff" /> : children}
@@ -127,6 +139,7 @@ export const InteractiveButton: React.FC<InteractiveButtonProps> = ({
 ```
 
 ### Loading and Empty States
+
 - Create components for loading and empty views
 
 ```tsx
@@ -135,7 +148,7 @@ interface LoadingStateProps {
 }
 
 export const LoadingState: React.FC<LoadingStateProps> = ({ text }) => (
-  <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+  <View style={{ alignItems: "center", justifyContent: "center" }}>
     <ActivityIndicator size="large" color="#3B82F6" />
     {text && <Text style={{ marginTop: 8 }}>{text}</Text>}
   </View>
@@ -153,14 +166,17 @@ interface EmptyStateProps {
 export const EmptyState: React.FC<EmptyStateProps> = ({
   title,
   description,
-  action
+  action,
 }) => (
-  <View style={{ alignItems: 'center', padding: 32 }}>
-    <Text style={{ fontSize: 18, fontWeight: '600' }}>{title}</Text>
+  <View style={{ alignItems: "center", padding: 32 }}>
+    <Text style={{ fontSize: 18, fontWeight: "600" }}>{title}</Text>
     {description && <Text style={{ marginVertical: 12 }}>{description}</Text>}
     {action && (
-      <TouchableOpacity onPress={action.onPress} style={{ backgroundColor: '#3B82F6', padding: 12, borderRadius: 6 }}>
-        <Text style={{ color: '#fff' }}>{action.label}</Text>
+      <TouchableOpacity
+        onPress={action.onPress}
+        style={{ backgroundColor: "#3B82F6", padding: 12, borderRadius: 6 }}
+      >
+        <Text style={{ color: "#fff" }}>{action.label}</Text>
       </TouchableOpacity>
     )}
   </View>
@@ -185,7 +201,7 @@ export const FormField: React.FC<FormFieldProps> = ({
   value,
   onChange,
   error,
-  secureTextEntry = false
+  secureTextEntry = false,
 }) => (
   <View style={{ marginBottom: 16 }}>
     <Text style={{ marginBottom: 4 }}>{label}</Text>
@@ -193,9 +209,14 @@ export const FormField: React.FC<FormFieldProps> = ({
       value={value}
       onChangeText={onChange}
       secureTextEntry={secureTextEntry}
-      style={{ borderWidth: 1, borderColor: error ? 'red' : '#ccc', padding: 8, borderRadius: 4 }}
+      style={{
+        borderWidth: 1,
+        borderColor: error ? "red" : "#ccc",
+        padding: 8,
+        borderRadius: 4,
+      }}
     />
-    {error && <Text style={{ color: 'red', marginTop: 4 }}>{error}</Text>}
+    {error && <Text style={{ color: "red", marginTop: 4 }}>{error}</Text>}
   </View>
 );
 ```
@@ -203,11 +224,12 @@ export const FormField: React.FC<FormFieldProps> = ({
 ## React Native Touch and Gesture Patterns
 
 ### Touch-Friendly Components
+
 - Ensure components are at least 44x44 for accessibility
 - Handle touch gestures using `PanResponder` or state-based logic
 
 ```tsx
-import { GestureResponderEvent } from 'react-native';
+import { GestureResponderEvent } from "react-native";
 
 interface TouchableCardProps {
   children: React.ReactNode;
@@ -216,7 +238,7 @@ interface TouchableCardProps {
 
 export const TouchableCard: React.FC<TouchableCardProps> = ({
   children,
-  onTap
+  onTap,
 }) => {
   const [isPressed, setIsPressed] = useState(false);
 
@@ -229,7 +251,7 @@ export const TouchableCard: React.FC<TouchableCardProps> = ({
         padding: 12,
         borderRadius: 6,
         transform: [{ scale: isPressed ? 0.95 : 1 }],
-        backgroundColor: '#fff'
+        backgroundColor: "#fff",
       }}
     >
       {children}
@@ -241,11 +263,12 @@ export const TouchableCard: React.FC<TouchableCardProps> = ({
 ## React Native Navigation Patterns
 
 ### Navigation Components
+
 - Use `@react-navigation/native` for navigation
 - Use active state based on route name or focus status
 
 ```tsx
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute } from "@react-navigation/native";
 
 interface NavigationItem {
   name: string;
@@ -261,12 +284,14 @@ export const Navigation: React.FC<NavigationProps> = ({ items }) => {
   const route = useRoute();
 
   return (
-    <View style={{ flexDirection: 'row', justifyContent: 'space-around' }}>
+    <View style={{ flexDirection: "row", justifyContent: "space-around" }}>
       {items.map((item) => {
         const isActive = route.name === item.name;
         return (
           <TouchableOpacity key={item.name} onPress={item.onPress}>
-            <Text style={{ color: isActive ? '#3B82F6' : '#444' }}>{item.label}</Text>
+            <Text style={{ color: isActive ? "#3B82F6" : "#444" }}>
+              {item.label}
+            </Text>
           </TouchableOpacity>
         );
       })}
@@ -278,6 +303,7 @@ export const Navigation: React.FC<NavigationProps> = ({ items }) => {
 ## React Native Performance UI Patterns
 
 ### Virtual Scrolling for Large Lists
+
 - Use FlatList with `initialNumToRender` and `windowSize` for performance
 
 ```tsx
@@ -289,9 +315,11 @@ export const UserList: React.FC<{ users: User[] }> = ({ users }) => {
   return (
     <FlatList
       data={users}
-      keyExtractor={(item, index) => index.toString()}
+      keyExtractor={(item) => item.id}
       renderItem={({ item }) => (
-        <View style={{ padding: 12, borderBottomWidth: 1, borderColor: '#ddd' }}>
+        <View
+          style={{ padding: 12, borderBottomWidth: 1, borderColor: "#ddd" }}
+        >
           <Text>{item.name}</Text>
         </View>
       )}
