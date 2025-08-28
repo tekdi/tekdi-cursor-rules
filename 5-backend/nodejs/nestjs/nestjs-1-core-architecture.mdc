@@ -1,7 +1,5 @@
 ---
-description: USE WHEN implementing NestJS core 
-architecture patterns, organizing project structure, 
-managing dependencies, or setting up modular applications
+description: USE WHEN implementing NestJS core architecture patterns, organizing project structure, managing dependencies, or setting up modular applications
 globs: ["**/*.ts", "**/*.js", "**/*.json"]
 alwaysApply: false
 ---
