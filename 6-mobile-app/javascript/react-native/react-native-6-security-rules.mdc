@@ -1,5 +1,6 @@
 ---
-description: USE WHEN securing frontend applications that protect both your users and your systems from common web security threats protect your applications and users from common security vulnerabilities
+description: USE WHEN securing frontend applications to protect both your users and your systems from common security vulnerabilities and threats
+applications and users from common security vulnerabilities
 globs: ["**/*"]
 alwaysApply: false
 ---
@@ -20,24 +21,16 @@ alwaysApply: false
 import { useState, useCallback } from "react";
 // Client-side sanitization in React Native should focus on basic input validation
 
-export const useSanitizedInput = (
-  initialValue: string = "",
-  options: { allowHtml?: boolean; stripHtml?: boolean } = {}
-) => {
+export const useSanitizedInput = (initialValue: string = "") => {
   const [value, setValue] = useState(initialValue);
 
-  const updateValue = useCallback(
-    (newValue: string) => {
-      let sanitized: string = newValue;
-
-      if (options.stripHtml) {
-        sanitized = newValue.replace(/<[^>]*>/g, "");
-      }
-
-      setValue(sanitized);
-    },
-    [options.stripHtml]
-  );
+  const updateValue = useCallback((newValue: string) => {
+    // Keep it simple in RN: trim control chars and normalize whitespace
+    const sanitized = newValue
+      .replace(/[\u0000-\u001F\u007F]/g, "")
+      .replace(/\s+/g, " ");
+    setValue(sanitized);
+  }, []);
 
   return [value, updateValue] as const;
 };
@@ -66,8 +59,11 @@ export const SafeInput: React.FC<SafeInputProps> = ({
 }) => {
   const handleChange = (text: string) => {
     if (text.length > maxLength) return;
-    if (!allowedChars.test(text)) return;
-    onChange(text);
+    const filtered = text
+      .split("")
+      .filter((c) => allowedChars.test(c))
+      .join("");
+    onChange(filtered);
   };
 
   return (
@@ -120,11 +116,15 @@ export const openSafeLink = async (url: string) => {
     return;
   }
 
-  const supported = await Linking.canOpenURL(url);
-  if (supported) {
-    await Linking.openURL(url);
-  } else {
-    Alert.alert("Cannot open URL");
+  try {
+    const supported = await Linking.canOpenURL(url);
+    if (supported) {
+      await Linking.openURL(url);
+    } else {
+      Alert.alert("Cannot open URL");
+    }
+  } catch (e) {
+    Alert.alert("Failed to open URL");
   }
 };
 ```
@@ -181,8 +181,12 @@ export const useAuth = () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
-
-      const { accessToken, user } = await response.json();
+      if (!response.ok) {
+        throw new Error(`Auth failed (${response.status})`);
+      }
+      const { accessToken, user } = await response.json().catch(() => {
+        throw new Error("Invalid auth response");
+      });
       await SecureTokenStorage.setTokens(accessToken);
 
       setAuthState({
@@ -259,6 +263,8 @@ class SecureApiClient {
     options: RequestInit = {}
   ): Promise<T> {
     const token = await this.getAuthToken();
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000); // 10s
     const config: RequestInit = {
       ...options,
       headers: {
@@ -266,11 +272,17 @@ class SecureApiClient {
         ...(token && { Authorization: `Bearer ${token}` }),
         ...options.headers,
       },
+      signal: controller.signal,
     };
 
-    const res = await fetch(`${this.baseURL}${endpoint}`, config);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return res.json();
+    try {
+      const res = await fetch(`${this.baseURL}${endpoint}`, config);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const text = await res.text();
+      return text ? (JSON.parse(text) as T) : (undefined as unknown as T);
+    } finally {
+      clearTimeout(timeout);
+    }
   }
 
   async get<T>(endpoint: string): Promise<T> {
@@ -304,14 +316,19 @@ export const useSecureApi = () => {
 ```tsx
 export const useSensitiveData = () => {
   const maskEmail = (email: string): string => {
+    if (!email.includes("@")) return email;
     const [local, domain] = email.split("@");
+    if (!domain) return email;
     return local.length > 2
-      ? `${local.slice(0, 2)}${"*".repeat(local.length - 2)}@${domain}`
-      : email;
+      ? `${local.slice(0, 2)}${"*".repeat(
+          Math.max(0, local.length - 2)
+        )}@${domain}`
+      : `${local}@${domain}`;
   };
 
   const maskCard = (card: string): string => {
     const clean = card.replace(/\D/g, "");
+    if (clean.length <= 4) return clean;
     return `${"*".repeat(clean.length - 4)}${clean.slice(-4)}`;
   };
 

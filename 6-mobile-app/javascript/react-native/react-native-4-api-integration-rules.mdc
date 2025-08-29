@@ -1,5 +1,5 @@
 ---
-description: USE WHEN intergrating APIs
+description: USE WHEN integrating APIs
 globs: ["**/*"]
 alwaysApply: false
 ---
@@ -266,18 +266,18 @@ export const useNetworkAwareQuery = <T,>(
 
 ```tsx
 class RequestDeduplicator {
-  private pendingRequests = new Map<string, Promise<any>>();
+  private pendingRequests = new Map<string, Promise<unknown>>();
 
-  async dedupe<T>(key: string, requestFn: () => Promise<T>): Promise<T> {
+  async dedupe<T>(key: string, requestFn: () => Promise<T>, timeoutMs = 15000): Promise<T> {
     if (this.pendingRequests.has(key)) {
       return this.pendingRequests.get(key)!;
     }
 
-    const request = requestFn()
-      .catch((e) => {
-        throw e;
-      })
-      .finally(() => this.pendingRequests.delete(key));
+    const timeout = new Promise<never>((_, reject) =>
++      setTimeout(() => reject(new Error(`Request timed out after ${timeoutMs}ms`)), timeoutMs)
++    );
++    const request = Promise.race([requestFn(), timeout])
++      .finally(() => this.pendingRequests.delete(key)) as Promise<T>;
 
     this.pendingRequests.set(key, request);
     return request;

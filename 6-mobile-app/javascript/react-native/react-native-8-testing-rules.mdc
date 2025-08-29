@@ -149,7 +149,7 @@ describe("useCounter", () => {
 - Test context providers and consumers
 
 ```tsx
-import { render, screen } from "@testing-library/react-native";
+import { render, screen, fireEvent } from "@testing-library/react-native";
 import { AuthProvider } from "../contexts/AuthContext";
 import { TodoApp } from "./TodoApp";
 
@@ -191,6 +191,12 @@ describe("TodoApp Integration", () => {
 import { render } from "@testing-library/react-native";
 import { AuthProvider } from "../contexts/AuthContext";
 
+type User = {
+  id: string;
+  name: string;
+  email: string;
+};
+
 export const renderWithProviders = (ui: React.ReactElement) => {
   return render(<AuthProvider>{ui}</AuthProvider>);
 };
@@ -213,6 +219,7 @@ export const createMockUser = (overrides: Partial<User> = {}): User => ({
 ```tsx
 import { render, screen } from "@testing-library/react-native";
 import { ErrorBoundary } from "./ErrorBoundary";
+import { Text } from "react-native";
 
 const ThrowError = ({ shouldThrow }: { shouldThrow: boolean }) => {
   if (shouldThrow) throw new Error("Test error");
