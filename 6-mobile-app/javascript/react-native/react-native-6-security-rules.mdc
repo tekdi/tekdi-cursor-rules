@@ -1,0 +1,337 @@
+---
+description: USE WHEN securing frontend applications to protect both your users and your systems from common security vulnerabilities and threats
+applications and users from common security vulnerabilities
+globs: ["**/*"]
+alwaysApply: false
+---
+
+# React Native Security Rules
+
+## Input Security and XSS Prevention
+
+### JSX and `dangerouslySetInnerHTML`
+
+- Not applicable in React Native (no HTML rendering)
+- Avoid HTML-based user-generated content entirely
+- Always validate and sanitize user inputs before rendering or processing
+
+### Input sanitization hook
+
+```tsx
+import { useState, useCallback } from "react";
+// Client-side sanitization in React Native should focus on basic input validation
+
+export const useSanitizedInput = (initialValue: string = "") => {
+  const [value, setValue] = useState(initialValue);
+
+  const updateValue = useCallback((newValue: string) => {
+    // Keep it simple in RN: trim control chars and normalize whitespace
+    const sanitized = newValue
+      .replace(/[\u0000-\u001F\u007F]/g, "")
+      .replace(/\s+/g, " ");
+    setValue(sanitized);
+  }, []);
+
+  return [value, updateValue] as const;
+};
+```
+
+### Safe Input Component
+
+```tsx
+import React from "react";
+import { TextInput } from "react-native";
+
+interface SafeInputProps {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  maxLength?: number;
+  allowedChars?: RegExp;
+}
+
+export const SafeInput: React.FC<SafeInputProps> = ({
+  value,
+  onChange,
+  placeholder,
+  maxLength = 500,
+  allowedChars = /^[a-zA-Z0-9\s\-_@.]+$/,
+}) => {
+  const handleChange = (text: string) => {
+    if (text.length > maxLength) return;
+    const filtered = text
+      .split("")
+      .filter((c) => allowedChars.test(c))
+      .join("");
+    onChange(filtered);
+  };
+
+  return (
+    <TextInput
+      value={value}
+      onChangeText={handleChange}
+      placeholder={placeholder}
+      maxLength={maxLength}
+    />
+  );
+};
+```
+
+## URL Safety
+
+- Validate URLs before opening
+- Prevent `javascript:` protocol
+
+```tsx
+import { Linking, Alert } from "react-native";
+
+// Note: URL constructor is only available on Hermes runtime or when polyfilled.
+// This implementation provides a fallback for apps running on JSC.
+export const isSafeUrl = (url: string): boolean => {
+  // Try using URL constructor if available
+  if (typeof URL === "function") {
+    try {
+      const parsedUrl = new URL(url);
+      const safeProtocols = ["http:", "https:", "mailto:"];
+      return safeProtocols.includes(parsedUrl.protocol);
+    } catch {
+      return false;
+    }
+  }
+
+  // Fallback for JSC: Basic protocol check using regex
+  try {
+    const protocolMatch = url.match(/^([^:]+):/);
+    if (!protocolMatch) return false;
+    const protocol = protocolMatch[0].toLowerCase();
+    return ["http:", "https:", "mailto:"].includes(protocol);
+  } catch {
+    return false;
+  }
+};
+
+export const openSafeLink = async (url: string) => {
+  if (!isSafeUrl(url)) {
+    Alert.alert("Unsafe link blocked");
+    return;
+  }
+
+  try {
+    const supported = await Linking.canOpenURL(url);
+    if (supported) {
+      await Linking.openURL(url);
+    } else {
+      Alert.alert("Cannot open URL");
+    }
+  } catch (e) {
+    Alert.alert("Failed to open URL");
+  }
+};
+```
+
+## Authentication and Authorization
+
+### Secure Token Handling
+
+```tsx
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+class SecureTokenStorage {
+  static readonly ACCESS_TOKEN_KEY = "access_token";
+
+  static async setTokens(accessToken: string) {
+    await AsyncStorage.setItem(this.ACCESS_TOKEN_KEY, accessToken);
+  }
+
+  static async getAccessToken(): Promise<string | null> {
+    return AsyncStorage.getItem(this.ACCESS_TOKEN_KEY);
+  }
+
+  static async clearTokens() {
+    await AsyncStorage.removeItem(this.ACCESS_TOKEN_KEY);
+  }
+}
+```
+
+### Auth Hook
+
+```tsx
+import { useState, useCallback } from "react";
+
+interface AuthState {
+  user: any;
+  accessToken: string | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+}
+
+export const useAuth = () => {
+  const [authState, setAuthState] = useState<AuthState>({
+    user: null,
+    accessToken: null,
+    isAuthenticated: false,
+    isLoading: false,
+  });
+
+  const login = useCallback(async (email: string, password: string) => {
+    setAuthState((prev) => ({ ...prev, isLoading: true }));
+    try {
+      const response = await fetch("https://example.com/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      if (!response.ok) {
+        throw new Error(`Auth failed (${response.status})`);
+      }
+      const { accessToken, user } = await response.json().catch(() => {
+        throw new Error("Invalid auth response");
+      });
+      await SecureTokenStorage.setTokens(accessToken);
+
+      setAuthState({
+        user,
+        accessToken,
+        isAuthenticated: true,
+        isLoading: false,
+      });
+    } catch (err) {
+      setAuthState({
+        user: null,
+        accessToken: null,
+        isAuthenticated: false,
+        isLoading: false,
+      });
+    }
+  }, []);
+
+  const logout = useCallback(async () => {
+    await SecureTokenStorage.clearTokens();
+    setAuthState({
+      user: null,
+      accessToken: null,
+      isAuthenticated: false,
+      isLoading: false,
+    });
+  }, []);
+
+  return { ...authState, login, logout };
+};
+```
+
+## Form Security
+
+- Use input validation
+- Protect against excessive login attempts
+
+```tsx
+import { useState, useCallback, useMemo } from "react";
+
+export const useRateLimit = (maxAttempts = 5, windowMs = 15 * 60 * 1000) => {
+  const [attempts, setAttempts] = useState<number[]>([]);
+
+  const isRateLimited = useMemo(() => {
+    const now = Date.now();
+    return attempts.filter((t) => now - t < windowMs).length >= maxAttempts;
+  }, [attempts, windowMs, maxAttempts]);
+
+  const recordAttempt = useCallback(() => {
+    const now = Date.now();
+    setAttempts((prev) => [...prev.filter((t) => now - t < windowMs), now]);
+  }, [windowMs]);
+
+  const resetAttempts = useCallback(() => setAttempts([]), []);
+
+  return { isRateLimited, recordAttempt, resetAttempts };
+};
+```
+
+## Secure API Communication
+
+```tsx
+class SecureApiClient {
+  private baseURL: string;
+  private getAuthToken: () => Promise<string | null>;
+
+  constructor(baseURL: string, getAuthToken: () => Promise<string | null>) {
+    this.baseURL = baseURL;
+    this.getAuthToken = getAuthToken;
+  }
+
+  private async makeRequest<T>(
+    endpoint: string,
+    options: RequestInit = {}
+  ): Promise<T> {
+    const token = await this.getAuthToken();
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000); // 10s
+    const config: RequestInit = {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...(token && { Authorization: `Bearer ${token}` }),
+        ...options.headers,
+      },
+      signal: controller.signal,
+    };
+
+    try {
+      const res = await fetch(`${this.baseURL}${endpoint}`, config);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const text = await res.text();
+      return text ? (JSON.parse(text) as T) : (undefined as unknown as T);
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  async get<T>(endpoint: string): Promise<T> {
+    return this.makeRequest<T>(endpoint, { method: "GET" });
+  }
+
+  async post<T>(endpoint: string, data: any): Promise<T> {
+    return this.makeRequest<T>(endpoint, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+}
+```
+
+```tsx
+export const useSecureApi = () => {
+  const { accessToken } = useAuth();
+
+  const apiClient = useMemo(() => {
+    return new SecureApiClient(
+      "https://example.com/api",
+      async () => accessToken
+    );
+  }, [accessToken]);
+
+  return apiClient;
+};
+```
+
+```tsx
+export const useSensitiveData = () => {
+  const maskEmail = (email: string): string => {
+    if (!email.includes("@")) return email;
+    const [local, domain] = email.split("@");
+    if (!domain) return email;
+    return local.length > 2
+      ? `${local.slice(0, 2)}${"*".repeat(
+          Math.max(0, local.length - 2)
+        )}@${domain}`
+      : `${local}@${domain}`;
+  };
+
+  const maskCard = (card: string): string => {
+    const clean = card.replace(/\D/g, "");
+    if (clean.length <= 4) return clean;
+    return `${"*".repeat(clean.length - 4)}${clean.slice(-4)}`;
+  };
+
+  return { maskEmail, maskCard };
+};
+```

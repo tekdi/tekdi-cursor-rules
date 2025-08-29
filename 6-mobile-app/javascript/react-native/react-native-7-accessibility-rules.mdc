@@ -1,0 +1,203 @@
+---
+description: USE WHEN creating inclusive, accessible web applications to ensure application work for all users, including those with disabilities
+globs: ["**/*"]
+alwaysApply: false
+---
+
+# React Native Accessibility Rules
+
+## React Native Semantic Structure and ARIA-like Usage
+
+### Semantic UI Structure
+
+- Use `AccessibilityRole` to describe element purpose (e.g., "button", "header", "link")
+- Use `accessibilityLabel` to describe elements without visible text
+- Use `accessibilityHint` to describe the action/result of a control
+- Use `accessibilityElementsHidden` and `importantForAccessibility` to manage accessibility visibility
+
+```tsx
+// Good: Semantic usage with roles and labels
+import { View, Text, TouchableOpacity } from "react-native";
+
+export const ArticlePage = ({ article }) => (
+  <View accessibilityRole="main">
+    <View accessibilityRole="article">
+      <View accessibilityRole="header">
+        <Text accessibilityRole="header" aria-level={1}>
+          {article.title}
+        </Text>
+        <Text>
+          By {article.author} on {article.publishedDate}
+        </Text>
+      </View>
+
+      <View>
+        <Text accessibilityRole="header" aria-level={2}>
+          Introduction
+        </Text>
+        <Text>{article.introduction}</Text>
+      </View>
+
+      <View>
+        <Text accessibilityRole="header" aria-level={2}>
+          Main Content
+        </Text>
+        <Text>{article.content}</Text>
+      </View>
+    </View>
+
+    <View accessibilityRole="complementary">
+      <Text accessibilityRole="header" aria-level={2}>
+        Related Articles
+      </Text>
+      <View
+        accessibilityRole="navigation"
+        accessibilityLabel="Related articles"
+      >
+        {article.relatedArticles.map((related) => (
+          <TouchableOpacity
+            key={related.id}
+            accessibilityRole="link"
+            accessibilityLabel={related.title}
+            onPress={() => navigate(`/articles/${related.slug}`)}
+          >
+            <Text>{related.title}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    </View>
+  </View>
+);
+
+// Good: Buttons vs links
+export const ActionButtons = () => (
+  <View>
+    <TouchableOpacity
+      onPress={handleSave}
+      accessibilityRole="button"
+      accessibilityLabel="Save changes"
+    >
+      <Text>Save Changes</Text>
+    </TouchableOpacity>
+
+    <TouchableOpacity
+      onPress={handleDelete}
+      accessibilityRole="button"
+      accessibilityLabel="Delete item"
+    >
+      <Text>Delete Item</Text>
+    </TouchableOpacity>
+  </View>
+);
+```
+
+## React Native Keyboard Navigation
+
+### Focus Management
+
+- Use `accessibilityFocus()` method to shift focus
+- Use `focusable` prop to mark components as keyboard focusable
+- Use `onFocus`/`onBlur` for dynamic UI feedback
+
+```tsx
+// Focus management example
+import { useRef, useEffect } from "react";
+import { TextInput } from "react-native";
+
+export const FocusableInput = () => {
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  return (
+    <TextInput
+      ref={inputRef}
+      accessibilityLabel="Name input"
+      placeholder="Enter your name"
+    />
+  );
+};
+```
+
+## React Native Form Accessibility
+
+### Accessible Form Design
+
+- Associate labels using `accessibilityLabel`
+- Announce error messages using `accessibilityLiveRegion="polite"`
+- Group related inputs using `accessibilityRole="form"`
+
+```tsx
+// Accessible form field
+import { View, Text, TextInput } from "react-native";
+
+export const AccessibleFormField = ({
+  label,
+  value,
+  onChangeText,
+  error,
+  required,
+}) => (
+  <View>
+    <Text>
+      {label} {required && "*"}
+    </Text>
+    <TextInput
+      value={value}
+      onChangeText={onChangeText}
+      accessibilityLabel={label}
+      accessibilityHint={required ? "Required field" : undefined}
+      accessibilityState={{ invalid: !!error }}
+    />
+    {!!error && <Text accessibilityLiveRegion="polite">{error}</Text>}
+  </View>
+);
+```
+
+## React Native Screen Reader Optimization
+
+### Screen Reader Announcements
+
+- Use `accessibilityLiveRegion` for dynamic content
+- Use `accessibilityState` to represent loading/error states
+- Use hidden text (`accessible={false}` or `accessibilityElementsHidden`) for context management
+
+```tsx
+// Status message component
+import { View, Text } from "react-native";
+
+export const StatusMessage = ({ message, type }) => (
+  <View accessibilityLiveRegion="polite" accessibilityRole="status">
+    <Text>{message}</Text>
+  </View>
+);
+
+// Collapsible section
+import { useState } from "react";
+import { View, Text, TouchableOpacity } from "react-native";
+
+export const CollapsibleSection = ({ title, children }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  return (
+    <View>
+      <TouchableOpacity
+        onPress={() => setIsExpanded(!isExpanded)}
+        accessibilityRole="button"
+        accessibilityLabel={`${title}, ${isExpanded ? "Collapse" : "Expand"}`}
+        accessibilityState={{ expanded: isExpanded }}
+      >
+        <Text>{title}</Text>
+      </TouchableOpacity>
+
+      {isExpanded && <View>{children}</View>}
+    </View>
+  );
+};
+```
+
+---
+
+Note: React Native does not support HTML/ARIA directly. Use accessibility props provided by React Native (e.g., `accessibilityRole`, `accessibilityLabel`, `accessibilityHint`, `accessibilityState`, `accessibilityLiveRegion`) to provide comparable semantics.

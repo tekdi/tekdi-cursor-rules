@@ -1,0 +1,96 @@
+---
+description: USE WHEN securing frontend applications that protect both your users and your systems from common web security threats protect your applications and users from common security vulnerabilities
+globs: ["**/*"]
+alwaysApply: false
+---
+# Hybrid Frontend Security Rules
+
+## Input Security and Data Validation (Defense in Depth)
+
+### User Input Sanitization
+- Sanitize all user input before rendering or processing
+- Escape HTML entities in dynamic content to prevent XSS
+- Validate input on both client and server sides
+- Use allowlists instead of blocklists for input validation
+- Never trust data from external sources without validation
+
+### XSS Prevention (Defense in Depth)
+- Use framework-provided safe rendering methods
+- Avoid unsafe HTML rendering for user-generated content
+- Apply appropriate content restrictions in hybrid environments
+- Encode data based on context (HTML, URL, JavaScript)
+- Use rendering mechanisms that automatically escape content
+
+### Form Security
+- Implement proper input validation
+- Use secure transport for all form submissions (HTTPS or native secure handlers)
+- Validate file uploads thoroughly
+- Implement rate limiting for form submissions
+- Use anti-automation techniques when applicable
+
+## Authentication and Session Security (Defense in Depth)
+
+### Secure Token Handling
+- Store authentication tokens securely (prefer secure storage mechanisms like SecureStore)
+- Avoid localStorage or sessionStorage for sensitive tokens
+- Implement proper token expiration and refresh handling
+- Use platform-specific secure attributes where applicable
+- Clear tokens on logout and session expiration
+
+### Session Management
+- Handle session expiration gracefully
+- Implement logout functionality that clears all sensitive data
+- Clear sensitive data on session end
+- Log session events securely
+- Handle app lifecycle events (pause, background, close)
+
+## API Security
+
+### Secure API Communication
+- Use HTTPS for all API communications
+- Implement proper error handling without leaking sensitive info
+- Validate API responses before use
+- Handle API rate limiting gracefully
+- Never expose API keys or sensitive configuration
+
+### Data Protection
+- Encrypt sensitive data before storage
+- Use secure communication protocols
+- Implement proper CORS-like access control where needed
+- Validate all data from external sources
+- Handle PII data with care
+
+## Client-Side Security
+
+### Content Security Strategy
+- Restrict content execution from untrusted sources
+- Avoid inline scripts where possible
+- Restrict resource loading to trusted domains
+- Monitor security violations where applicable
+- Review policies when adding third-party dependencies
+
+### Dependency Security
+- Use lockfiles for consistent dependency versions
+
+### Error Handling and Information Disclosure
+- Handle errors gracefully without exposing internal logic
+- Log errors securely
+- Provide user-friendly error messages
+- Implement proper fallback mechanisms
+- Track security-related error patterns
+
+## Third-Party Integration Security
+
+### External Service Integration
+- Validate all third-party scripts before loading
+- Use integrity checks for external resources when possible
+- Isolate untrusted content where possible
+- Handle third-party service failures gracefully
+- Prepare fallback logic for failed integrations
+
+### Data Validation from External Sources
+- Never trust external data without validation
+- Implement schema validation for received data
+- Sanitize external data
+- Use type checking
+- Implement timeouts for external requests
