@@ -32,9 +32,3 @@ This document outlines the mandatory naming conventions and architectural rules 
 - **Data-Agnostic Design**: Chart components must not be coupled to a specific backend schema.
 - **Dynamic Mapping**: Always provide `dataKey` and `nameKey` props (or equivalent) to map incoming JSON objects dynamically.
 
-
-## 5. Development Principles
-- **No Hardcoding**: Strictly move all configuration values, API endpoints, and static strings to `.env` or configuration modules.
-- **Modularity**: Logic that can exist independently of the project's specific domain must be moved to a separate layer or utility.
-- **Performance at Scale**: Add comments to new features explaining how the implementation handles a 10x increase in data volume.
-- **Reviewability**: Keep functions focused and short. If a component grows beyond 250 lines, consider refactoring it into smaller sub-components.
