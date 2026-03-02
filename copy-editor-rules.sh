@@ -12,8 +12,7 @@ REPO_URL="https://github.com/tekdi/tekdi-cursor-rules.git"
 
 # Create temporary directory for cloning
 TMP_DIR=$(mktemp -d)
-#SCRIPT_DIR="$TMP_DIR/tekdi-cursor-rules"
-SCRIPT_DIR="/Users/manoj/GIT/Tekdi-Infra/tekdi-cursor-rules"
+SCRIPT_DIR="$TMP_DIR/tekdi-cursor-rules"
 
 # Cleanup function
 cleanup() {
@@ -292,7 +291,7 @@ main() {
     print_info "This script will clone the tekdi-cursor-rules repository and copy the appropriate rules to your project."
     
     # Clone the repository first
-    # clone_repository
+    clone_repository
 
     # Step 1: Select editor
     get_editor
