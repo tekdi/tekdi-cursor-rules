@@ -12,7 +12,8 @@ REPO_URL="https://github.com/tekdi/tekdi-cursor-rules.git"
 
 # Create temporary directory for cloning
 TMP_DIR=$(mktemp -d)
-SCRIPT_DIR="$TMP_DIR/tekdi-cursor-rules"
+#SCRIPT_DIR="$TMP_DIR/tekdi-cursor-rules"
+SCRIPT_DIR="/Users/manoj/GIT/Tekdi-Infra/tekdi-cursor-rules"
 
 # Cleanup function
 cleanup() {
@@ -72,11 +73,36 @@ clone_repository() {
     fi
 }
 
+# Function to select editor
+get_editor() {
+    while true; do
+        echo
+        print_info "Which editor are you setting up rules for?"
+        echo "1) cursor"
+        echo "2) antigravity"
+        read -r choice
+
+        case $choice in
+            1|cursor|Cursor|CURSOR)
+                editor="cursor"
+                return 0
+                ;;
+            2|antigravity|Antigravity|ANTIGRAVITY)
+                editor="antigravity"
+                return 0
+                ;;
+            *)
+                print_error "Invalid input. Please enter 'cursor' or 'antigravity' (or 1/2)."
+                ;;
+        esac
+    done
+}
+
 # Function to get repository path
 get_repo_path() {
     while true; do
         echo
-        print_info "Enter the path of the repository where you want to copy cursor rules:"
+        print_info "Enter the path of the repository where you want to copy editor rules:"
         read -r repo_path
         
         # Expand tilde to home directory
@@ -180,6 +206,9 @@ get_framework() {
     read -r framework
 }
 
+# Global counter for files copied in this run
+total_files_copied=0
+
 # Function to backup existing file if it exists
 backup_file_if_exists() {
     local dest_file="$1"
@@ -217,6 +246,7 @@ copy_files_matching() {
             cp "$file" "$dest_dir/"
             print_success "Copied $(basename "$file")"
             files_found=true
+            ((total_files_copied++))
         fi
     done <<< "$(find "$source_dir" -name "*$pattern*" -type f)"
     
@@ -246,6 +276,7 @@ copy_all_files() {
             cp "$file" "$dest_dir/"
             print_success "Copied $(basename "$file")"
             files_found=true
+            ((total_files_copied++))
         fi
     done
     
@@ -257,92 +288,126 @@ copy_all_files() {
 # Main function
 main() {
     echo
-    print_info "=== Cursor Rules Copy Script ==="
+    print_info "=== Editor Rules Copy Script ==="
     print_info "This script will clone the tekdi-cursor-rules repository and copy the appropriate rules to your project."
     
     # Clone the repository first
-    clone_repository
-    
+    # clone_repository
+
+    # Step 1: Select editor
+    get_editor
+
     # Get user inputs
     get_repo_path
     get_project_type
     get_language "$project_type"
     get_framework "$project_type" "$language"
-    
+
+    # Set destination directory and rules source based on editor
+    if [[ "$editor" == "cursor" ]]; then
+        dest_dir="$repo_path/.cursor/rules"
+        rules_base_dir="$SCRIPT_DIR/cursor-rules"
+    else
+        dest_dir="$repo_path/.agent/rules"
+        rules_base_dir="$SCRIPT_DIR/antigravity-rules"  # all folders sourced from antigravity-rules (skipped if not present)
+    fi
+
     # Create destination directory
-    dest_dir="$repo_path/.cursor/rules"
     mkdir -p "$dest_dir"
     
     # Create backup directory with timestamp
     backup_timestamp=$(date +"%Y%m%d_%H%M%S")
-    backup_dir="$repo_path/.cursor_rule_backup_$backup_timestamp"
+    backup_dir="$repo_path/.editor_rule_backup_$backup_timestamp"
     
+    print_info "Editor: $editor"
     print_info "Destination directory: $dest_dir"
     print_info "Backup directory (if needed): $backup_dir"
     
     echo
     print_info "Starting file copy process"
-    
-    # 1. Copy all files from 1-tekdi folder
+
+    # 1. Copy all files from 1-tekdi folder (if exists in editor's rules folder)
     echo
     print_info "1. Copying Tekdi common rules..."
-    copy_all_files "$SCRIPT_DIR/1-tekdi" "$dest_dir" "Tekdi common rules"
-    
-    # 2. Copy files from 2-common folder based on project type
+    copy_all_files "$rules_base_dir/1-tekdi" "$dest_dir" "Tekdi common rules"
+
+    # 2. Copy files from 2-common folder based on project type (if exists in editor's rules folder)
     echo
     print_info "2. Copying common $project_type rules..."
-    copy_files_matching "$SCRIPT_DIR/2-common" "$dest_dir" "$project_type" "common $project_type rules"
-    
-    # 3. Copy files from appropriate folder based on project type and language
-    echo
-    print_info "3. Copying $language rules for $project_type..."
-    
-    if [[ "$project_type" == "backend" ]]; then
-        # Copy general backend files matching language
-        # copy_files_matching "$SCRIPT_DIR/5-backend" "$dest_dir" "$language" "backend $language rules"
-        copy_files_matching "$SCRIPT_DIR/5-backend" "$dest_dir" "backend" "backend $language rules"
+    copy_files_matching "$rules_base_dir/2-common" "$dest_dir" "$project_type" "common $project_type rules"
 
-        # Copy language-specific files
-        if [[ "$language" == "nodejs" ]]; then
-            copy_all_files "$SCRIPT_DIR/5-backend/nodejs" "$dest_dir" "NodeJS backend rules"
-            
-            # Copy framework-specific files
-            if [[ -n "$framework" ]]; then
-                copy_all_files "$SCRIPT_DIR/5-backend/nodejs/$framework" "$dest_dir" "$framework framework rules"
+    # 3. Copy files from 3-products folder (if exists in editor's rules folder)
+    echo
+    print_info "3. Copying product rules..."
+    copy_all_files "$rules_base_dir/3-products" "$dest_dir" "product rules"
+
+    # 4. Copy language/framework-specific rules from appropriate source
+    echo
+    print_info "4. Copying $language rules for $project_type..."
+
+    if [[ "$editor" == "cursor" ]]; then
+        # Cursor: source 4-frontend and 5-backend from cursor-rules
+        if [[ "$project_type" == "backend" ]]; then
+            copy_files_matching "$rules_base_dir/5-backend" "$dest_dir" "backend" "backend $language rules"
+
+            if [[ "$language" == "nodejs" ]]; then
+                copy_all_files "$rules_base_dir/5-backend/nodejs" "$dest_dir" "NodeJS backend rules"
+                if [[ -n "$framework" ]]; then
+                    copy_all_files "$rules_base_dir/5-backend/nodejs/$framework" "$dest_dir" "$framework framework rules"
+                fi
+            elif [[ "$language" == "python" ]]; then
+                copy_all_files "$rules_base_dir/5-backend/python" "$dest_dir" "Python backend rules"
+                if [[ -n "$framework" ]]; then
+                    copy_all_files "$rules_base_dir/5-backend/python/$framework" "$dest_dir" "$framework framework rules"
+                fi
             fi
-        elif [[ "$language" == "python" ]]; then
-            copy_all_files "$SCRIPT_DIR/5-backend/python" "$dest_dir" "Python backend rules"
-            
-            # Copy framework-specific files
-            if [[ -n "$framework" ]]; then
-                copy_all_files "$SCRIPT_DIR/5-backend/python/$framework" "$dest_dir" "$framework framework rules"
+        else
+            # Frontend
+            copy_files_matching "$rules_base_dir/4-frontend" "$dest_dir" "frontend" "frontend $language rules"
+
+            if [[ "$language" == "javascript" ]]; then
+                if [[ -n "$framework" ]]; then
+                    copy_all_files "$rules_base_dir/4-frontend/$framework" "$dest_dir" "$framework framework rules"
+                fi
+            elif [[ -d "$rules_base_dir/4-frontend/$language" ]]; then
+                copy_all_files "$rules_base_dir/4-frontend/$language" "$dest_dir" "$language frontend rules"
             fi
         fi
     else
-        # Frontend
-        #copy_files_matching "$SCRIPT_DIR/4-frontend" "$dest_dir" "$language" "frontend $language rules"
-        copy_files_matching "$SCRIPT_DIR/4-frontend" "$dest_dir" "frontend" "frontend $language rules"
+        # Antigravity: source 4-frontend and 5-backend from antigravity-rules
+        if [[ "$project_type" == "backend" ]]; then
+            copy_all_files "$rules_base_dir/5-backend" "$dest_dir" "backend rules"
 
-        
-        # Copy language-specific files
-        if [[ "$language" == "javascript" ]]; then
-            if [[ -n "$framework" ]]; then
-                copy_all_files "$SCRIPT_DIR/4-frontend/$framework" "$dest_dir" "$framework framework rules"
+            if [[ "$language" == "python" ]]; then
+                copy_all_files "$rules_base_dir/5-backend/python" "$dest_dir" "Python backend rules"
+                if [[ -n "$framework" ]]; then
+                    copy_all_files "$rules_base_dir/5-backend/python/$framework" "$dest_dir" "$framework framework rules"
+                fi
             fi
-        elif [[ -d "$SCRIPT_DIR/4-frontend/$language" ]]; then
-            copy_all_files "$SCRIPT_DIR/4-frontend/$language" "$dest_dir" "$language frontend rules"
+        else
+            # Frontend
+            copy_all_files "$rules_base_dir/4-frontend" "$dest_dir" "frontend rules"
+
+            if [[ "$language" == "javascript" ]]; then
+                if [[ -n "$framework" ]]; then
+                    copy_all_files "$rules_base_dir/4-frontend/$framework" "$dest_dir" "$framework framework rules"
+                fi
+            elif [[ -d "$rules_base_dir/4-frontend/$language" ]]; then
+                copy_all_files "$rules_base_dir/4-frontend/$language" "$dest_dir" "$language frontend rules"
+            fi
         fi
     fi
-    
+
     echo
     print_success "=== Copy process completed! ==="
     print_info "Rules have been copied to: $dest_dir"
-    print_info "You can now use these cursor rules in your project."
+    print_info "You can now use these editor rules in your project."
     print_info "Temporary files will be cleaned up automatically."
     
     # Show summary
     echo
     print_info "=== Summary ==="
+    print_info "Editor: $editor"
     print_info "Repository: $repo_path"
     print_info "Project Type: $project_type"
     print_info "Language: $language"
@@ -351,8 +416,7 @@ main() {
     fi
     
     # Count copied files
-    file_count=$(find "$dest_dir" -type f | wc -l)
-    print_info "Total files copied: $file_count"
+    print_info "Total files copied: $total_files_copied"
     
     # Show backup information if backup directory exists
     if [[ -d "$backup_dir" ]]; then
@@ -364,4 +428,4 @@ main() {
 }
 
 # Run the main function
-main "$@" 
+main "$@"
