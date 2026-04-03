@@ -9,5 +9,8 @@ Claude Skills to be added
 - Reverse engineering -- converting an existing code into specifications (parth inputs + https://mcpmarket.com/tools/skills/reverse-engineer-documenter)
 - Performance audit/review FE, BE
 - Security audit/review FE, BE
+- Prompt analyzer
+- Performance test suite planner
+- Automation tests suite planner
 
 _use cursor rules as base
