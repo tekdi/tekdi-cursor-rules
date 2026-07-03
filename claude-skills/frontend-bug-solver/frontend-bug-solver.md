@@ -1,31 +1,27 @@
 ---
-
 name: frontend-bug-solver
-
 description: >
-Agentic frontend bug investigation skill for Next.js and React applications.
-Supports UI issues, API integration problems, state management bugs,
-tracking failures, authentication issues, routing problems,
-rendering issues, content player bugs, and responsive design defects.
+ Agentic frontend bug investigation skill for Next.js and React applications.
+ Supports UI issues, API integration problems, state management bugs,
+ tracking failures, authentication issues, routing problems,
+ rendering issues, content player bugs, and responsive design defects.
 
-Trigger this skill whenever the user says things like:
-"I have a frontend bug",
-"UI is broken",
-"button not working",
-"API data not showing",
-"tracking is failing",
-"page not rendering",
-"state is not updating",
-"course completion issue",
-"certificate not generating",
-"content player problem",
-"Next.js issue",
-"React bug".
+ Trigger this skill whenever the user says things like:
+ "I have a frontend bug",
+ "UI is broken",
+ "button not working",
+ "API data not showing",
+ "tracking is failing",
+ "page not rendering",
+ "state is not updating",
+ "course completion issue",
+ "Next.js issue",
+ "React bug".
 
-This skill takes ownership of the full debugging workflow:
-user journey → route → component tree → hooks → state →
-service → API → UI rendering.
------------------------------
+ This skill takes ownership of the full debugging workflow:
+ user journey → route → component tree → hooks → state →
+ service → API → UI rendering.
+---
 
 # Frontend Bug Solver
 
@@ -402,9 +398,9 @@ Player lifecycle issue
 
 ## Frontend Bug Investigation Report
 
-Page: <route>
+Page: <route></route>
 
-Bug: <expected vs actual>
+Bug: <expected vs actual></expected>
 
 ### Root Cause
 
@@ -421,22 +417,22 @@ Route
 
 ### Evidence
 
-Code: <what code shows>
+Code: <what code shows></what>
 
 Network:
 <request/response findings>
 
-Console: <error findings>
+Console: <error findings></error>
 
-Screenshot: <supporting evidence>
+Screenshot: <supporting evidence></supporting>
 
 ### Fix
 
-File: <file path>
+File: <file path></file>
 
-Change: <required modification>
+Change: <required modification></required>
 
-Code Snippet: <example>
+Code Snippet: <example></example>
 
 ### How To Verify
 
