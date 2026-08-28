@@ -491,7 +491,7 @@ rules as "Inferred from code" when not explicitly documented.
 
 **Mandatory: `business/business-overview.md` sections (when raw docs exist):**
 
-1. Purpose and problem statement (PoI / dataset merge context).
+1. Purpose and problem statement (e.g., PoI / dataset merge context).
 2. **Scope (Implemented Today)** — table traced to code (models, forms, views).
 3. **Non-Scope** — from raw product/architecture docs **and** gaps verified absent in code.
 4. **Reconciliation with Raw Business Documents** — raw claim vs code-verified behaviour; link to wiki-index raw-doc inventory.
