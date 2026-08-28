@@ -1,13 +1,12 @@
 ---
 name: llm-wiki
 description: >
-  Generates a complete AI-native service wiki from repository analysis for human onboarding,
-  Business Operations Transfer (BOT), and AI-agent long-term memory. Use when the user asks
-  to generate a wiki, service documentation, repository documentation, ai-context.md,
-  repository-map.md, BOT documentation, onboarding docs, or LLM-native documentation for
-  a codebase. Trigger on phrases like "create wiki", "document this service", "generate
-  service wiki", "AI-native documentation", or when analyzing a repository for knowledge
-  transfer. Works across any project or service codebase.
+  Generates a complete AI-native service wiki from repository analysis for human onboarding
+  and AI-agent long-term memory. Use when the user asks to generate a wiki, service
+  documentation, repository documentation, ai-context.md, repository-map.md, onboarding
+  docs, or LLM-native documentation for a codebase. Trigger on phrases like "create wiki",
+  "document this service", "generate service wiki", "AI-native documentation", or when
+  analyzing a repository for knowledge transfer. Works across any project or service codebase.
 ---
 
 # LLM-Native Wiki Generation
@@ -17,11 +16,10 @@ Specialist, and Repository Intelligence Agent.
 
 Your task is to analyze the entire repository and generate a complete AI-native service wiki.
 
-The wiki must satisfy three goals:
+The wiki must satisfy two goals:
 
 1. Human onboarding and knowledge transfer.
-2. BOT (Business Operations Transfer) documentation.
-3. AI-agent understanding and long-term repository memory.
+2. AI-agent understanding and long-term repository memory.
 
 ---
 
@@ -37,8 +35,8 @@ Before writing any documentation:
 2. **Scan the repository** — map top-level folders, entry points, config files, CI/CD, and README.
 3. **Check for an existing wiki** at `docs/wiki/<service-name>/`. If present, update and extend
    rather than blindly overwriting; preserve accurate existing content.
-4. **Check for a BOT document** the user attached or referenced. Use it as the functional
-   coverage checklist. If none is provided, use the BOT section list below.
+4. **Check for a functional coverage document** the user attached or referenced. Use it as
+   the functional coverage checklist. If none is provided, use the checklist below.
 5. **Check for raw documents** at `docs/raw_documents/` (and any user-attached DOCX/PDF/XLSX).
    Inventory architecture, product, deployment, and release artifacts. Use them as **secondary
    reference** only — reconcile every technical claim against code (see
@@ -75,7 +73,7 @@ Before documenting any behaviour, command, config file, test suite, or diagram d
 2. **Label the status** using one of:
    - **Implemented (verified)** — default for claims traced to source files.
    - **Recommended (not yet implemented)** — patterns, thresholds, or tooling suggested but absent from the repo.
-   - **Note callout** — when a BOT section has no evidence at all.
+   - **Note callout** — when a checklist section has no evidence at all.
 3. **Never present recommendations as current fact** — e.g. do not list `/tests/test_views_.py` or `.coveragerc` unless those files exist.
 4. **Deduplicate across wiki pages** — one canonical diagram per flow; other pages link to it instead of repeating Mermaid blocks.
 
@@ -99,12 +97,12 @@ When `docs/raw_documents/` (or user-supplied legacy docs) exist:
 
 ---
 
-## BOT Coverage Checklist
+## Functional Coverage Checklist
 
-The generated documentation must use the BOT document structure as the functional coverage
-checklist and ensure all sections are represented somewhere in the generated wiki.
+The generated documentation must ensure all of the following sections are represented
+somewhere in the generated wiki.
 
-The BOT document includes coverage for:
+Coverage includes:
 
 - Document Control
 - Business & Functional Overview
@@ -116,7 +114,6 @@ The BOT document includes coverage for:
 - Database
 - AI/LLM Integrations
 - Third-Party Integrations
-- BigQuery
 - Caching
 - Async Processing
 - Infrastructure
@@ -203,7 +200,6 @@ docs/wiki/<service-name>/
 ├── integrations/
 │   ├── ai-llm.md
 │   ├── third-party-integrations.md
-│   ├── bigquery.md
 │   ├── caching.md
 │   └── async-processing.md
 ├── operations/
@@ -266,7 +262,6 @@ The TOC must include:
 # Integrations
 * AI/LLM
 * Third Party Services
-* BigQuery
 * Cache
 * Async Processing
 
@@ -286,11 +281,6 @@ Each TOC entry must link to the corresponding markdown file using relative paths
 
 `wiki-index.md` is the navigational hub; `README.md` is the executive entry point with a
 brief service summary at the top.
-
-**README.md and wiki-index.md must spell out BOT on first use:** `BOT (Business Operations Transfer)` — in the wiki
-purpose line, Quick Start audience table, Document Control table, and wiki-index Document Control
-(e.g. "BOT (Business Operations Transfer) checklist"). `knowledge/glossary.md` must define **BOT** as
-Business Operations Transfer.
 
 ---
 
@@ -488,7 +478,7 @@ Task Progress:
 - [ ] operations/ (all files)
 - [ ] knowledge/ (all files)
 - [ ] README.md + wiki-index.md (TOC last, after all files exist)
-- [ ] BOT coverage verification
+- [ ] Functional coverage verification
 ```
 
 ### Per-file guidance
@@ -582,7 +572,6 @@ trace all claims to source code):
 |------|-------------------|
 | `integrations/ai-llm.md` | **Model, Parameters & API-Key Management** (model env vars, generation params, key storage/rotation, required vs optional keys); **Response Handling** (parse strategy, return tuple, batch-level behaviour, translate response shape); plus existing prompt/guardrail/retry coverage |
 | `integrations/third-party-integrations.md` | **Fallback Behavior** table per integration (hard fail vs soft degrade vs redirect); note absent fallbacks (e.g. no Gemini → fuzzy fallback) |
-| `integrations/bigquery.md` | **Quota Considerations** (GCP quota areas, bytes scanned, concurrent jobs, `RetryError`/`PermissionDenied` behaviour, mitigations outside app code) in addition to cost/read patterns |
 | `integrations/caching.md` | **TTL** (`CACHES` timeout, per-key TTL usage); **Invalidation Strategy** (or explicit Note when no `cache.set`/`cache.delete` exists); document in-memory state invalidation if Redis is unused |
 
 **operations/** — Extract from Dockerfile, docker-compose, K8s manifests, Terraform, CI
@@ -621,7 +610,7 @@ remediation roadmap. Cross-link from other wiki pages to specific `TD-XX` anchor
 ## Source Files
 ```
 
-When the BOT checklist mentions "Known Issues", map that coverage to `technical-debt.md`
+When the functional coverage checklist mentions "Known Issues", map that coverage to `technical-debt.md`
 and phrase items as technical debt — not as a separate "known issues" document.
 
 **Mandatory: `architecture/testing.md` structure when tests are absent or partial:**
@@ -695,7 +684,7 @@ Before reporting completion, verify:
 - [ ] README.md and wiki-index.md have complete, linked TOCs
 - [ ] ai-context.md is 3–8 pages and information dense
 - [ ] repository-map.md covers all major folders
-- [ ] Every BOT checklist section is represented (or includes a customer-friendly **Note**)
+- [ ] Every checklist section is represented (or includes a customer-friendly **Note**)
 - [ ] All five documentation layers are covered across the wiki
 - [ ] No hallucinated APIs, tables, or config keys
 - [ ] No "Information Not Found In Repository" (or similar alarming gap labels) in any wiki page — undocumented areas use **Note** callouts per the customer-friendly format
@@ -713,11 +702,9 @@ Before reporting completion, verify:
 - [ ] Raw documents in `docs/raw_documents/` are listed in `wiki-index.md` and reconciled against code — no stale raw-doc claims presented as current implementation
 - [ ] `business/business-overview.md` includes **Scope**, **Non-Scope**, and **Reconciliation with Raw Business Documents** when raw docs exist
 - [ ] `business/workflows.md`, `business-rules.md`, and `users-and-personas.md` trace rules and steps to code; product-only items marked as not implemented
-- [ ] `README.md` and `wiki-index.md` use `BOT (Business Operations Transfer)` on first mention; `glossary.md` defines BOT as Business Operations Transfer
 - [ ] Mermaid diagrams render for major flows and components
 - [ ] `integrations/ai-llm.md` includes **Model, Parameters & API-Key Management** and **Response Handling**
 - [ ] `integrations/third-party-integrations.md` includes **Fallback Behavior**
-- [ ] `integrations/bigquery.md` includes **Quota Considerations**
 - [ ] `integrations/caching.md` includes **TTL** and **Invalidation Strategy** (or honest Note when not implemented)
 - [ ] `application/api-specification.md` lists only working, callable endpoints — no broken/dead routes or negative route labels (route defects documented in `technical-debt.md` only)
 
@@ -739,7 +726,7 @@ When finished, provide:
 3. docs/wiki/<service-name>/architecture/architecture-overview.md
 
 ### Coverage Summary
-| BOT Section | Status | Document |
+| Coverage Section | Status | Document |
 |-------------|--------|----------|
 | ...         | ✅ / ⚠️ Documented with Note | link |
 
