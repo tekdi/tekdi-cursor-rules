@@ -200,6 +200,91 @@ Learn more how to use these rules selectively
 - [Frontend Rules Usage Guide](docs/frontend-cursor-rules-guide.md)
 - [Backend Rules Usage Guide](docs/backend-cursor-rules-guide.md)
 
+## Claude Skills & Subagents
+
+This repository also ships reusable **Claude Code** skills (`claude-skills/`) and subagents
+(`claude-subagents/`) for feature development, requirement-to-task planning, code review, and QA
+testing. They ship stack-agnostic — each one only becomes specific to *your* product's codebase
+after you run it through the **`update-skill-subagent`** subagent
+(`claude-subagents/update-skill-subagent.md`), which reads your repo's actual conventions (via an
+existing LLM-native wiki at `docs/wiki/<service>/` if one exists, or a direct repo scan otherwise)
+and rewrites the target skill/subagent in place to match.
+
+Copy `claude-skills/` and `claude-subagents/` into your project (e.g. under `.claude/skills/` and
+`.claude/agents/`), then ask Claude Code to tailor each one to your stack before first use.
+
+### 1. `brd-task-creator`
+
+Turns a business requirement into a reviewed plan and a task list of user stories/acceptance
+criteria/test plans, grounded in your repo's actual routing, data, and integration conventions.
+
+```
+Update the brd-task-creator skill to suit the tech stack of this codebase.
+```
+
+Once tailored, use it directly on a requirement:
+
+```
+Use brd-task-creator to turn this requirement into a task list:
+"Allow a project owner to invite a collaborator by email."
+```
+
+### 2. `fullstack-developer`
+
+Guides a feature from data layer → route/API layer → integration layer → frontend, following the
+conventions your codebase actually uses instead of generic framework advice.
+
+```
+Update the fullstack-developer skill to suit the tech stack of this codebase.
+```
+
+Once tailored:
+
+```
+Use fullstack-developer to add a "resend invite" endpoint and wire it into the collaborators page.
+```
+
+### 3. `code-reviewer`
+
+Reviews your pending diff against this repo's own conventions (auth pattern, data-layer
+conventions, integration retry pattern, frontend approach) before you raise a PR. Read-only —
+reports findings, doesn't edit files.
+
+```
+Update the code-reviewer subagent to suit the tech stack of this codebase.
+```
+
+Once tailored:
+
+```
+Run code-reviewer on my current diff before I raise this PR.
+```
+
+### 4. `qa-tester`
+
+Writes and actually runs test cases — happy path, negative, boundary, auth, error-handling — for a
+change, using whatever test framework and mocking style your repo already has, and reports real
+pass/fail results plus coverage gaps.
+
+```
+Update the qa-tester subagent to suit the tech stack of this codebase.
+```
+
+Once tailored:
+
+```
+Use qa-tester to test the "resend invite" endpoint I just added.
+```
+
+### Notes
+
+- Run `update-skill-subagent` once per skill/subagent per repo (or again after a stack migration).
+  It reuses findings from any sibling skill/subagent already tailored in the same repo, so tailoring
+  the second, third, and fourth one is faster than the first.
+- If it can't find `docs/wiki/<service>/`, it will ask whether to generate one first (e.g. via an
+  `llm-wiki`-style skill) or proceed with a direct repo scan — it won't silently guess.
+- It reports what it could **not** confirm as an explicit gap rather than fabricating a convention.
+
 ## Contributing
 
 To add new rules or modify existing ones:

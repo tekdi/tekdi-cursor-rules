@@ -39,6 +39,10 @@ Before writing any documentation:
    rather than blindly overwriting; preserve accurate existing content.
 4. **Check for a BOT document** the user attached or referenced. Use it as the functional
    coverage checklist. If none is provided, use the BOT section list below.
+5. **Check for raw documents** at `docs/raw_documents/` (and any user-attached DOCX/PDF/XLSX).
+   Inventory architecture, product, deployment, and release artifacts. Use them as **secondary
+   reference** only — reconcile every technical claim against code (see
+   [Raw documents reconciliation](#raw-documents-reconciliation)).
 
 ---
 
@@ -72,10 +76,26 @@ Before documenting any behaviour, command, config file, test suite, or diagram d
    - **Implemented (verified)** — default for claims traced to source files.
    - **Recommended (not yet implemented)** — patterns, thresholds, or tooling suggested but absent from the repo.
    - **Note callout** — when a BOT section has no evidence at all.
-3. **Never present recommendations as current fact** — e.g. do not list `augmentation/tests/test_views_.py` or `.coveragerc` unless those files exist.
+3. **Never present recommendations as current fact** — e.g. do not list `/tests/test_views_.py` or `.coveragerc` unless those files exist.
 4. **Deduplicate across wiki pages** — one canonical diagram per flow; other pages link to it instead of repeating Mermaid blocks.
 
 When regenerating an existing wiki, re-verify claims against the current codebase and correct stale content.
+
+### Raw documents reconciliation
+
+When `docs/raw_documents/` (or user-supplied legacy docs) exist:
+
+1. **Primary source of truth:** repository source code, config, Docker/CI assets, and tests.
+2. **Secondary reference:** raw DOCX/PDF/XLSX for product intent, original architecture (e.g. v1.0),
+   deployment runbooks, release notes, and QA spreadsheets.
+3. **On conflict:** document what **code implements today**; add reconciliation tables in
+   `architecture/architecture-overview.md` and `business/business-overview.md` (with brief
+   cross-links in `business-rules.md`, `workflows.md`, `users-and-personas.md` as needed) showing
+   raw-doc claim vs verified implementation. Do not copy stale raw-doc technical details into wiki as current fact.
+4. **Extract safely:** use raw docs for actors, workflows, non-scope items, personas, future enhancements that
+   may now be implemented, and glossary terms — then verify each technical and behavioural claim in code before writing.
+5. **Link inventory:** ensure `wiki-index.md` lists raw documents with relative links under
+   **Source / Raw Documents**; architecture pages link to that section instead of duplicating filenames.
 
 ---
 
@@ -169,10 +189,8 @@ docs/wiki/<service-name>/
 │   └── business-rules.md
 ├── architecture/
 │   ├── architecture-overview.md
-│   ├── system-context.md
 │   ├── component-diagram.md
 │   ├── sequence-diagrams.md
-│   ├── deployment-architecture.md
 │   ├── configuration.md
 │   ├── testing.md
 │   ├── coding-patterns.md
@@ -201,9 +219,12 @@ docs/wiki/<service-name>/
 │   └── legacy-artifacts.md
 ```
 
-> **Wiki layout rule:** All architecture diagrams (sequence, workflow, component, deployment)
-> and engineering reference docs (configuration, testing, coding patterns, repository conventions)
-> live under `architecture/`. Do **not** create separate `assets/` or `engineering/` folders.
+> **Wiki layout rule:** Architecture diagrams (sequence, workflow, component — including system
+> context / C4) and engineering reference docs (configuration, testing, coding patterns,
+> repository conventions) live under `architecture/`. **Deployment topology** diagrams and
+> runbooks live under `operations/deployment.md` and `operations/infrastructure.md`. Do **not**
+> create separate `assets/` or `engineering/` folders, or standalone `system-context.md` /
+> `deployment-architecture.md` pages.
 > Embed Mermaid diagrams inline in the appropriate architecture page. Use `sequence-diagrams.md`
 > as the **single canonical file** for both interaction sequences and workflow flowcharts.
 > `business/workflows.md` lists workflow IDs and narrative steps only — link to
@@ -229,10 +250,8 @@ The TOC must include:
 * Business Rules
 
 # Architecture
-* System Context
-* Components
+* Components (includes system context / C4 context diagram)
 * Sequence & Workflow Diagrams
-* Deployment Architecture
 * Configuration
 * Testing
 * Coding Standards
@@ -447,6 +466,7 @@ Use this blockquote pattern consistently across all wiki pages:
 ❌ > **Information Not Found In Repository**
 ❌ | Production | > **Information Not Found In Repository** |
 ❌ This section could not be found in the repository.
+❌ | — | `/feature/` | — | **Broken route** — maps non-view function |
 ```
 
 Replace every occurrence above with a **Note** that explains current scope in plain language.
@@ -473,16 +493,81 @@ Task Progress:
 
 ### Per-file guidance
 
-**business/** — Infer from code comments, domain models, README, and issue trackers. Mark
-inferred business rules as "Inferred from code" when not explicitly documented.
+**business/** — Infer from code comments, domain models, README, and issue trackers. When
+`docs/raw_documents/` contains product guidance, project documentation, or release notes, use them
+for personas, pain points, non-scope, and workflow narrative — then verify every step and rule in
+code (see [Raw documents reconciliation](#raw-documents-reconciliation)). Mark inferred business
+rules as "Inferred from code" when not explicitly documented.
 
-**architecture/** — Include Mermaid C4-style or component diagrams. Sequence diagrams and
-workflow flowcharts both go in `sequence-diagrams.md` (single canonical diagrams file).
-`architecture-overview.md` holds a diagram index and links — not duplicate diagrams.
+**Mandatory: `business/business-overview.md` sections (when raw docs exist):**
+
+1. Purpose and problem statement (e.g., PoI / dataset merge context).
+2. **Scope (Implemented Today)** — table traced to code (models, forms, views).
+3. **Non-Scope** — from raw product/architecture docs **and** gaps verified absent in code.
+4. **Reconciliation with Raw Business Documents** — raw claim vs code-verified behaviour; link to wiki-index raw-doc inventory.
+5. Source files.
+
+**Mandatory: `business/workflows.md` rules:**
+
+- Workflow IDs (W1–Wn) with triggers, endpoints, and links to `architecture/sequence-diagrams.md` (no duplicate Mermaid).
+- Note where raw project docs describe steps not implemented (e.g. file deletion after import, BQ download link).
+- Batch status lifecycle diagram or link to canonical diagram.
+
+**Mandatory: `business/business-rules.md` rules:**
+
+- Separate **Batch**, **Matching**, **Monitoring**, **Process control**, **Export**, and **Data quality** tables — all values traced to source.
+- **Product Non-Rules** or reconciliation notes when raw docs state rules the code does not enforce (e.g. v1.0 fuzzy threshold vs v1.1 Gemini).
+- Fix stale paths — use repo-relative paths, not assumed subfolders (e.g. `EpicWorld/`) unless they exist.
+
+**Mandatory: `business/users-and-personas.md` sections:**
+
+- Product personas from raw docs + operational roles inferred from code.
+- **Access permissions** — honest statement of RBAC (or lack thereof) verified in auth code.
+- Reconciliation when product vision (e.g. per-persona access) differs from implementation.
+
+**architecture/** — Include Mermaid C4-style or component diagrams in `component-diagram.md`
+(system context + internal components — **no separate `system-context.md`**). Sequence diagrams
+and workflow flowcharts both go in `sequence-diagrams.md` (single canonical diagrams file).
+Deployment topology diagrams belong in `operations/deployment.md` (**no separate
+`deployment-architecture.md`**).
+When `docs/raw_documents/` contains architecture or product docs, reconcile them with code
+before updating architecture pages (see [Raw documents reconciliation](#raw-documents-reconciliation)).
+`architecture-overview.md` holds a diagram index, links — not duplicate diagrams — and dual-perspective
+**Alternative Architecture Approaches** sections (see template below).
 `business/workflows.md` describes workflow IDs and steps; link to `sequence-diagrams.md`
 for visuals. Document configuration (env var tables), testing (verified current state +
 clearly labelled recommendations), coding patterns, and repository conventions in dedicated
 pages under `architecture/`. Do **not** create separate `assets/` or `engineering/` folders.
+
+**Mandatory: `architecture/architecture-overview.md` sections:**
+
+1. High-level summary and **Architecture Style** table (current implemented choices).
+2. **Key decisions** — numbered list triangulating raw architecture docs and code.
+3. **Reconciliation with Raw Architecture Documents** — when `docs/raw_documents/` exists:
+   table of raw-doc claims vs code-verified behaviour; link to wiki-index raw-doc inventory.
+4. **Alternative Architecture Approaches** — two subsections (see rules below):
+   - **Software engineering perspectives** — current approach and selected evolution paths.
+   - **AI / ML engineering perspectives** — current approach and selected evolution paths.
+5. **Decision guide** — compact matrix mapping priorities to both SWE and AI/ML approach IDs (reference only the alternatives listed in the tables).
+6. Diagram & reference index, risks, source files.
+
+**Alternative Architecture Approaches** rules:
+
+- Lead with what is **implemented today**; alternatives are options for planning, not false claims.
+- Split into **Software engineering perspectives** and **AI / ML engineering perspectives** tables
+  (use letter IDs per lens, e.g. A–D for SWE, I–L/N for AI/ML, or a single table with a **Lens** column).
+- Each table: one row for the **current** approach, then only the **highest-impact** additional alternatives
+  for that service — keep tables concise; do **not** enumerate every conceivable architecture.
+- **Do not** write meta-instructions in the wiki (e.g. “at most three alternatives”, row caps, or “not an
+  exhaustive catalog”) — present the tables directly under each subsection heading.
+- Each row: approach, summary, pain addressed, trade-offs, fit for codebase.
+- Tie rows to **verified evidence** (debt IDs, commented code, dependencies in `requirements.txt`,
+  raw-doc “future enhancement” items that may now be implemented).
+- Include a short **decision guide** (typically 3–5 priority rows) with columns for both lenses — reference
+  **only** approach IDs that appear in the tables above.
+- Do **not** present aspirational architectures as current fact — label **Implemented**,
+  **Partially considered**, **Dependency present unused**, or **Not implemented**.
+- Cross-link to `technical-debt.md`, `integrations/ai-llm.md`, `async-processing.md`, and related architecture pages.
 
 **application/** — Trace actual routes, handlers, models. Include endpoint tables with
 method, path, handler file, and purpose.
@@ -589,10 +674,10 @@ erDiagram
 
 | Diagram type | Target file |
 |---|---|
-| System context, C4 | `architecture/system-context.md`, `component-diagram.md` |
+| System context, C4 context, components | `architecture/component-diagram.md` |
 | Request/response sequences | `architecture/sequence-diagrams.md` |
 | Business/workflow flowcharts | `architecture/sequence-diagrams.md` (same file — do not split) |
-| Deployment topology | `architecture/deployment-architecture.md` |
+| Deployment topology, Docker, runbooks | `operations/deployment.md`, `operations/infrastructure.md` |
 | ERD | `application/database.md` |
 | Diagram index | `architecture/architecture-overview.md` (links only — no duplicate diagrams) |
 | Workflow narrative (no diagrams) | `business/workflows.md` (links to `sequence-diagrams.md`) |
@@ -623,12 +708,18 @@ Before reporting completion, verify:
 - [ ] `architecture/testing.md` separates **Current State (verified)** from **Recommended (not yet implemented)**
 - [ ] No false claims about test files, `.coveragerc`, CI jobs, or commands absent from the repo
 - [ ] `architecture/configuration.md`, `testing.md`, `coding-patterns.md`, `repository-conventions.md` exist
+- [ ] `architecture/architecture-overview.md` includes **Reconciliation with Raw Architecture Documents** when `docs/raw_documents/` exists (raw claim vs code-verified table)
+- [ ] `architecture/architecture-overview.md` includes **Alternative Architecture Approaches** with concise **Software engineering** and **AI / ML engineering** tables (current + selected alternatives only, no row-cap prose), decision guide referencing only listed IDs, alternatives labelled Implemented / Partially considered / Not implemented
+- [ ] Raw documents in `docs/raw_documents/` are listed in `wiki-index.md` and reconciled against code — no stale raw-doc claims presented as current implementation
+- [ ] `business/business-overview.md` includes **Scope**, **Non-Scope**, and **Reconciliation with Raw Business Documents** when raw docs exist
+- [ ] `business/workflows.md`, `business-rules.md`, and `users-and-personas.md` trace rules and steps to code; product-only items marked as not implemented
 - [ ] `README.md` and `wiki-index.md` use `BOT (Business Operations Transfer)` on first mention; `glossary.md` defines BOT as Business Operations Transfer
 - [ ] Mermaid diagrams render for major flows and components
 - [ ] `integrations/ai-llm.md` includes **Model, Parameters & API-Key Management** and **Response Handling**
 - [ ] `integrations/third-party-integrations.md` includes **Fallback Behavior**
 - [ ] `integrations/bigquery.md` includes **Quota Considerations**
 - [ ] `integrations/caching.md` includes **TTL** and **Invalidation Strategy** (or honest Note when not implemented)
+- [ ] `application/api-specification.md` lists only working, callable endpoints — no broken/dead routes or negative route labels (route defects documented in `technical-debt.md` only)
 
 ---
 
@@ -666,6 +757,8 @@ When finished, provide:
 
 - **Analyze before writing.** Read source code; do not guess from folder names alone.
 - **Code is truth.** Every technical claim must trace to a file in the repository.
+- **Raw docs are context, not truth.** Use `docs/raw_documents/` for product intent, personas, and history;
+  reconcile against code in both `architecture/` and `business/` pages and mark divergences explicitly.
 - **Verify tests and tooling.** Glob for test directories, `.coveragerc`, CI workflows before documenting them.
 - **Label aspirational content.** Use **Recommended (not yet implemented)** — never imply tests or config exist when they do not.
 - **Deduplicate diagrams.** One canonical Mermaid block per flow; link elsewhere.

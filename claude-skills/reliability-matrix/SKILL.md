@@ -19,9 +19,10 @@ Auditor.
 Your task is to perform a **comprehensive, evidence-based reliability assessment** of the
 entire repository using the Reliability Matrix and Score Key.
 
-**Golden rule:** Never assume a condition is met unless evidence exists. The goal is an
-**honest audit**, not maximized scores. Assume the audit may be reviewed by engineering
-leadership, architects, auditors, and client stakeholders.
+**Golden rule:** Never assume a condition is met unless evidence exists. Apply **balanced,
+evidence-based scoring** with partial credit for documented progress. The goal is an
+**actionable audit** that reflects both current capability and maturity trajectory — suitable
+for engineering leadership, architects, auditors, and client stakeholders.
 
 **Reference files (read before scoring):**
 
@@ -29,6 +30,11 @@ leadership, architects, auditors, and client stakeholders.
 - Scoring model: [score-key.md](score-key.md)
 
 If the user attaches a custom Reliability Matrix, use that instead of the standard matrix.
+
+**Standard matrix:** 44 parameters in [reliability-matrix.md](reliability-matrix.md), sourced from
+`Updated EPIC_Tekdi_Reliability_Matrix.xlsx`. Service-specific score columns in the spreadsheet
+(LIM, Geoservices, Augmentation, etc.) are for human tracking only — assessments use the shared
+Code / Tier / Pillar / Parameter / Condition columns.
 
 ---
 
@@ -108,25 +114,31 @@ Search systematically across:
 
 Use `Grep`, `Glob`, and targeted `Read` — do not rely on memory.
 
-### Step 3 — Score conservatively
+### Step 3 — Score with balanced calibration
 
-Apply the 0–10 scale from [score-key.md](score-key.md). Reduce the score when evidence
-is missing, partial, or not enforced in CI/production.
+Apply the 0–10 scale from [score-key.md](score-key.md) using **balanced, evidence-based**
+scoring. Give **partial credit** when wiki documentation, technical-debt registers, Docker
+assets, test suites, or manual runbooks demonstrate progress toward the condition even if
+CI/production enforcement is not yet in place.
 
-### Step 4 — Document findings (detailed columns required)
+After base scoring, apply the **per-parameter calibration** defined in
+[score-key.md](score-key.md) when computing per-row scores.
 
-For each row record **Score (0–10)** plus three **detailed** narrative columns.
-These columns must be substantive enough for an auditor to verify the score without
-reading source code. One-line summaries are **not acceptable**.
+### Step 4 — Document findings (markdown per-row sections)
 
-#### Assessment column (minimum 3–5 sentences)
+For each row record **Score (0–10)** plus three **detailed** narrative fields in
+`reliability-assessment.md` under **Detailed Assessments by Pillar**. These must be
+substantive enough for an auditor to verify the score without reading source code.
+One-line summaries are **not acceptable**.
+
+#### Assessment (minimum 3–5 sentences)
 
 Must answer all of:
 
 1. Which parts of the **Condition of Satisfaction** are fully met, partially met, or not met
 2. Why this **specific score** was chosen (and why not one point higher or lower)
 3. Whether the capability is **ad hoc**, **documented**, **enforced in CI**, or **operationalized in production**
-4. Any **conservative scoring** rationale when evidence is ambiguous
+4. Any **score calibration** rationale when evidence is ambiguous
 
 **Template:**
 
@@ -137,7 +149,7 @@ implementation: [satisfied elements] are in place, but [missing elements] preven
 a higher score because [reliability impact].
 ```
 
-#### Evidence column (structured, path-specific)
+#### Evidence (structured, path-specific)
 
 Must include **both** positive and negative findings:
 
@@ -158,7 +170,7 @@ Rules:
 - List **searches performed** when evidence is absent (proves the gap was investigated)
 - Never write vague evidence like "logging exists" — specify the formatter, handler, and file
 
-#### Gap Analysis column (actionable remediation)
+#### Gap Analysis (actionable remediation)
 
 Must include **concrete steps** to reach score 10:
 
@@ -174,18 +186,19 @@ EFFORT: Small / Medium / Large
 
 Do not write generic gaps like "improve testing" — name the test type, directory, and threshold.
 
-#### Column length guidance
+Each detailed row section in `reliability-assessment.md` must use this structure:
 
-| Column | Markdown (per-row sections) | CSV export |
-|--------|----------------------------|------------|
-| Assessment | 3–5 sentences | Same text, CSV-escaped |
-| Evidence | FOUND + SEARCHED sections | Same text, semicolon-separated lists |
-| Gap Analysis | Numbered steps + effort | Same text |
+```markdown
+#### <Code> — <Parameter> (Score: **N**/10)
 
-The **CSV is the authoritative machine-readable export** for Assessment, Evidence, and Gap
-Analysis. `reliability-assessment.md` is the human-readable view (index table, per-pillar
-detail sections, cross-cutting search paths). Both must contain **identical column text**
-per row.
+**Tier:** P1/P2/P3 | **Condition:** <Condition of Satisfaction summary>
+
+**Assessment:** ...
+
+**Evidence:** FOUND: ... SEARCHED, NOT FOUND: ...
+
+**Gap Analysis:** TO REACH 10: ... EFFORT: ... BLOCKERS: ...
+```
 
 ---
 
@@ -195,41 +208,62 @@ per row.
 
 Include:
 
-- Assessment metadata (service, date, row count, overall average)
-- Note: **Authoritative detail: CSV export; this document is the human-readable view.**
-- Matrix definition note (standard vs custom)
-- Score key table (from [score-key.md](score-key.md))
-- **Cross-cutting evidence locations** table (repo areas searched: source, CI, wiki, etc.)
-- Assessment index table (Code, Pillar, Parameter, Score, link to detail sections)
-- Assessment table (all columns; **Assessment / Evidence / Gap Analysis must use the
-  detailed formats from Step 4**, not one-line summaries):
+- Assessment metadata (service, date, row count, matrix source)
+- Link to CSV export (score summary only)
+- **Scoring Methodology** section (per-parameter uplift and score key table from [score-key.md](score-key.md))
+- **Detailed Assessments by Pillar** — per-pillar subsections with every matrix row as a
+  subsection containing Tier, Condition, Assessment, Evidence, and Gap Analysis
 
-| Code | Pillar | Parameter | Tier | Condition of Satisfaction | Score | Assessment | Evidence | Gap Analysis |
-| ---- | ------ | --------- | ---- | ------------------------- | ----- | ---------- | -------- | ------------ |
+Do **not** include: Column Content Standards, Cross-Cutting Evidence Locations, Pillar weights
+(overall score), Summary Statistics, or Assessment Index.
 
-- **Per-pillar detail sections** below the index (recommended when rows exceed 20):
-  repeat each row as a subsection with full Assessment, Evidence, and Gap Analysis paragraphs
-
-- Each detailed row section must include:
+Each detailed row section must include:
   - What evidence was found (with paths)
   - What evidence was missing (with searches performed)
   - Which parts of the condition were satisfied / not satisfied
   - Numbered remediation steps to reach score 10
 
+Optional trailing sections: Cross-Pillar Analysis, Remediation link to improvement backlog.
+
 ### 2. `reliability-assessment.csv`
 
-Same columns as the assessment table, CSV-encoded for spreadsheet import.
+Score summary only — CSV-encoded for spreadsheet filtering:
+
+| Code | Tier | Pillar | Parameter | Condition of Satisfaction | Score (0-10) |
+| ---- | ---- | ------ | --------- | ------------------------- | ------------ |
+
+Do **not** include Assessment, Evidence, or Gap Analysis columns in the CSV.
+Full narrative detail lives in `reliability-assessment.md` only.
 
 ### 3. `improvement-backlog.md`
 
-For **every row where score &lt; 8**, create a remediation task:
+Create tasks from items in `executive-summary.md` (Improvement Opportunities,
+Quick Wins, Strategic Improvements). Deduplicate overlapping items into single backlog
+entries. Do **not** generate one task per matrix row scoring &lt; 8 unless the user
+requests full matrix backlog coverage.
+
+Assign **Critical**, **High**, **Medium**, or **Low** per [score-key.md](score-key.md#priority-model).
+**Critical** means production deployment is not acceptable until resolved (or explicitly waived).
+Use the full priority range based on evidence — do not cap or default priorities.
+
+Include a **Priority Summary** table with counts for all four levels.
 
 ```markdown
-### <Matrix Code> - <Parameter Name>
+## Priority Summary
+
+| Priority | Count | Focus |
+|---|---|---|
+| Critical | N | Production deployment blockers |
+| High | N | Serious gaps requiring mitigation before or immediately after go-live |
+| Medium | N | Near-term operational maturity |
+| Low | N | Enhancements and deferred structural work |
+
+### IMP-NN — <Concise title>
 
 **Priority:** Critical / High / Medium / Low
-**Current Score:** X/10
-**Target Score:** 10/10
+**Production gate:** Blocks production / Conditional go-live / Does not block production
+**Source:** Improvement Opportunity #N / Quick Win #N / Strategic #N
+**Matrix codes:** CD3, TE1, ...
 
 **Title:** <Concise action-oriented title>
 
@@ -238,46 +272,35 @@ For **every row where score &lt; 8**, create a remediation task:
 - **Gap:** ...
 - **Why this matters:** ...
 - **Reliability impact:** ...
+- **Why this priority:** ... (cite evidence; state if production is blocked)
 
 **Acceptance Criteria:**
 - [ ] Criterion 1
 - [ ] Criterion 2
-- [ ] Criterion 3
 
 **Implementation Guidance:**
-- Suggested files, modules, tooling, architectural approach
+- Suggested files, modules, tooling
 
 **Estimated Effort:** Small / Medium / Large
 
 **Dependencies:** ...
 ```
 
-Use the priority model from [score-key.md](score-key.md).
-
 ### 4. `executive-summary.md`
 
-Include:
+Include **only** these sections:
 
 ```markdown
-# Reliability Scorecard
-
-## Overall Score
-## Score by Pillar
-## Score by Tier
-## Top 10 Risks
-## Top 10 Improvement Opportunities
+## Improvement Opportunities
 ## Quick Wins
 ## Strategic Improvements
-## Technical Debt Impact
-## Estimated Reliability Maturity
 ```
 
-Compute:
+Do **not** include: Reliability Scorecard, Overall Score, Score by Pillar, Score by Tier,
+Top 10 Risks, Technical Debt Impact, Estimated Reliability Maturity, or Related Deliverables.
 
-- **Overall score** — average of all row scores
-- **Score by pillar** — average per pillar
-- **Score by tier** — average per P1/P2/P3
-- **Maturity band** — from [score-key.md](score-key.md) maturity bands
+Header metadata: service name, repository, assessment date, matrix source, score scale,
+wiki path, link to Detailed Assessments by Pillar in `reliability-assessment.md`.
 
 ---
 
@@ -293,21 +316,26 @@ docs/reliability/
 
 ---
 
-## Assessment Rules (strict)
+## Assessment Rules
 
 1. **Evidence-based only** — never provide unsupported conclusions.
-2. **Conservative scoring** — insufficient evidence → lower score + explain why.
+2. **Balanced calibration** — apply partial credit for documented progress using the
+   per-parameter calibration in [score-key.md](score-key.md). Reserve score 0 for truly absent capability.
 3. **Complete coverage** — evaluate every matrix row; do not skip rows.
 4. **Exact references** — evidence must include file paths, not vague descriptions.
-5. **Wiki + code** — search both; absence in both is strong evidence of a gap.
-6. **No score inflation** — the goal is audit honesty, not a flattering report.
+5. **Wiki + code** — search both; documented gaps in wiki/debt register count toward partial credit.
+6. **Honest gaps** — uplift scores for calibration, but keep Assessment/Evidence/Gap Analysis
+   narratives accurate; do not hide real remediation needs.
 7. **Re-assessment aware** — when updating a prior assessment, note what changed.
+8. **Priority calibration** — assign Critical only when production deployment is genuinely
+   not acceptable; do not inflate or deflate priority for optics. Document **Why this priority**
+   on every backlog task.
 
 ---
 
 ## Explanation Template (per row)
 
-Use this pattern in CSV columns and markdown per-row sections:
+Use this pattern in markdown per-row sections under Detailed Assessments by Pillar:
 
 ```
 Score: 6
@@ -337,17 +365,19 @@ EFFORT: Small
 
 For large repositories, work in pillar batches to stay thorough:
 
-1. Code Quality & Architecture (CQ1 … CQ7)
-2. Observability & Alerting (OB1 … OB9)
-3. Error Handling & Resilience (EH1 … EH8)
-4. Testing (TE1 … TE9)
-5. CI/CD & Deployment (CD1 … CD9)
-6. API & Interface Contracts (AP1 … AP8)
-7. Documentation — Stripe-grade (DO1 … DO11)
-8. Security & Compliance (SC1 … SC6)
+1. Code Quality & Architecture (CQ1 … CQ7) — 7 rows
+2. Observability & Alerting (OB1, OB2, OB4, OB5, OB7, OB8) — 6 rows
+3. Error Handling & Resilience (EH2, EH3, EH4, EH6, EH8) — 5 rows
+4. Testing (TE1 … TE9) — 9 rows
+5. CI/CD & Deployment (CD1 … CD4) — 4 rows
+6. API & Interface Contracts (AP5) — 1 row
+7. Documentation — Stripe-grade (DO1 … DO10) — 10 rows
+8. Security & Compliance (SC1, SC6) — 2 rows
 
-After all rows are scored, generate executive summary and improvement backlog last so
-aggregates are accurate.
+**Total: 44 parameters** in the standard matrix (`Updated EPIC_Tekdi_Reliability_Matrix.xlsx`).
+Evaluate every row present in [reliability-matrix.md](reliability-matrix.md); row count may differ if the user supplies a custom matrix.
+
+After all rows are scored, generate executive summary and improvement backlog last.
 
 ---
 
@@ -355,14 +385,16 @@ aggregates are accurate.
 
 Before finishing, verify:
 
-- [ ] All 67 matrix rows evaluated (or all rows in custom matrix)
-- [ ] Every row has a score plus **detailed** Assessment, Evidence, and Gap Analysis (not one-liners)
-- [ ] Every Assessment column explains condition satisfaction and score rationale (3+ sentences)
-- [ ] Every Evidence column lists FOUND paths **and** SEARCHED-NOT-FOUND items
-- [ ] Every Gap Analysis column has numbered remediation steps with target files/CI jobs
-- [ ] `reliability-assessment.csv` column text **matches** the markdown per-row sections exactly
-- [ ] `reliability-assessment.md` includes cross-cutting evidence locations and authoritative-detail note
-- [ ] `improvement-backlog.md` has tasks for all rows scoring &lt; 8
-- [ ] `executive-summary.md` includes pillar/tier breakdowns and maturity band
+- [ ] All matrix rows evaluated (44 in standard matrix, or all rows in custom matrix)
+- [ ] Every row has a score plus **detailed** Assessment, Evidence, and Gap Analysis in markdown (not one-liners)
+- [ ] Every Assessment explains condition satisfaction and score rationale (3+ sentences)
+- [ ] Every Evidence lists FOUND paths **and** SEARCHED-NOT-FOUND items
+- [ ] Every Gap Analysis has numbered remediation steps with target files/CI jobs
+- [ ] `reliability-assessment.csv` contains score summary columns only (no Assessment/Evidence/Gap Analysis)
+- [ ] `reliability-assessment.md` does **not** include Column Content Standards, Cross-Cutting Evidence Locations, Pillar weights, Summary Statistics, or Assessment Index
+- [ ] `improvement-backlog.md` contains executive-summary tasks (deduplicated) with **Critical / High / Medium / Low** assigned per [score-key.md](score-key.md#priority-model)
+- [ ] Critical items are limited to true production blockers; each includes **Why this priority** with evidence
+- [ ] Priority summary reports counts for all four levels
+- [ ] `executive-summary.md` includes only Improvement Opportunities, Quick Wins, and Strategic Improvements
 - [ ] No unsupported claims — every score traceable to evidence or its absence
 - [ ] Assessment date and service name recorded
