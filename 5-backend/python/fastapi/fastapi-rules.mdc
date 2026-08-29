@@ -1,0 +1,57 @@
+---
+description: This rule explains Python - FastAPI conventions and best practices for high-performance Python APIs.
+globs: **/*.py
+alwaysApply: false
+---
+## GENERAL PRINCIPLES
+- Always write clean, readable, production-ready Python code.
+- Follow PEP8 style conventions.
+- Use snake_case for variables, function names, and file names.
+- Use PascalCase for class names.
+- Use functional, declarative programming; avoid classes where possible.
+- Prefer iteration and modularization over code duplication.
+---
+## FRAMEWORK & LIBRARIES
+- Use **FastAPI** for building APIs. Do not suggest Flask or Django for REST APIs.
+- For data pipelines, prefer **pandas** for small/medium data and **Dask** or **PySpark** for large data.
+- When writing async Python code, use **async/await** properly.
+- Use APIRouter for organizing routes by feature or resource
+- Use path parameters, query parameters, and request bodies appropriately
+- Use proper status codes for responses (201 for creation, 404 for not found, etc.)
+- Use Pydantic models for request and response validation
+- Use appropriate HTTP methods with path operation decorators (@app.get, @app.post, etc.)
+---
+## TESTING RULES
+- Always generate a **pytest** unit test for every new function or class.
+- Name test files as `test_<module_name>.py`.
+- Use descriptive test function names like `test_<functionality>_<scenario>()`.
+- Never skip writing tests for critical business logic.
+---
+## SECURITY & SECRETS
+- Never hardcode API keys, secrets, or passwords.
+- Always show how to load secrets from environment variables or config files.
+- Never log sensitive user information such as passwords or tokens.
+- Use parameterized queries when generating SQL to avoid SQL injection.
+---
+## LOGGING & ERROR HANDLING
+- Use Python's built-in `logging` module instead of `print` for logs.
+- Always handle possible exceptions gracefully.
+- Use custom exception classes for domain-specific errors if needed.
+---
+## STRUCTURE & MODULARITY
+- Organize code into logical modules: `api/`, `services/`, `models/`, `schemas/`, `utils/`.
+- Follow the separation of concerns principle: API layer should not contain business logic.
+- Use Pydantic models for request and response schemas in FastAPI.
+---
+## DATA SCIENCE SPECIFIC
+- Always fix random seeds for reproducibility in ML training code.
+- Add docstrings explaining model inputs, outputs, and expected shapes.
+---
+## DOCKER & ENVIRONMENTS
+- Show examples with **Docker** when sharing production deployment setups.
+- Use `.env` files for local development environment variables.
+---
+## PROMPT TONE & INSTRUCTIONS
+- Be concise but clear.
+- Explain assumptions in comments if code is non-trivial.
+- If multiple solutions exist, choose the one with best maintainability and clarity.
